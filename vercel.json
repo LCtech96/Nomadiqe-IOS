@@ -1,5 +1,6 @@
 {
   "buildCommand": "echo 'Static redirect page'",
   "outputDirectory": ".",
-  "framework": null
+  "framework": null,
+  "rewrites": [{ "source": "/favicon.ico", "destination": "/favicon.png" }]
 }
