@@ -1,5 +1,5 @@
 {
   "buildCommand": "echo 'Static redirect page'",
-  "outputDirectory": "public",
+  "outputDirectory": ".",
   "framework": null
 }
