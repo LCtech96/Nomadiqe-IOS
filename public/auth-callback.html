@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Conferma - Nomadiqe</title>
+  <script>
+    (function() {
+      var hash = window.location.hash;
+      if (hash && (hash.indexOf('access_token=') !== -1)) {
+        // Reindirizza all'app con gli stessi token (apre l'app su mobile)
+        window.location.replace('nomadiqe://auth/callback' + hash);
+      } else {
+        document.body.innerHTML = '<p>Link non valido. Apri l\'app Nomadiqe.</p>';
+      }
+    })();
+  </script>
+</head>
+<body>
+  <p>Reindirizzamento all'app…</p>
+</body>
+</html>

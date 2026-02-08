@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nomadiqe</title>
+  <script>
+    (function() {
+      var hash = window.location.hash;
+      if (hash && hash.indexOf('access_token=') !== -1) {
+        window.location.replace('nomadiqe://auth/callback' + hash);
+      }
+    })();
+  </script>
+</head>
+<body>
+  <p>Nomadiqe. Se hai cliccato il link di conferma email, l'app dovrebbe aprirsi automaticamente.</p>
+  <p>Altrimenti apri l'app Nomadiqe e accedi.</p>
+</body>
+</html>
