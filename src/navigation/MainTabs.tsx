@@ -17,14 +17,9 @@ import { HomeStack } from './HomeStack';
 import { ExploreStack } from './ExploreStack';
 import { ProfileStack } from './ProfileStack';
 
-// Temporary placeholder screens
-import { View, Text } from 'react-native';
+import KOLBEDScreen from '../screens/kolbed/KOLBEDScreen';
 
-const KOLBEDScreen = () => (
-  <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-    <Text>KOL&BED</Text>
-  </View>
-);
+import { View } from 'react-native';
 
 const CreatePlaceholderScreen = () => <View style={{ flex: 1 }} />;
 
@@ -102,8 +97,8 @@ export function MainTabs() {
           tabPress: (e) => {
             e.preventDefault();
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            // @ts-ignore
-            navigation.navigate('CreatePost');
+            (navigation.getParent() as { navigate: (name: string) => void } | undefined)
+              ?.navigate('CreatePost');
           },
         })}
       />

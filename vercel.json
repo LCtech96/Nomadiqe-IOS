@@ -2,5 +2,8 @@
   "buildCommand": "echo 'Static redirect page'",
   "outputDirectory": ".",
   "framework": null,
-  "rewrites": [{ "source": "/favicon.ico", "destination": "/favicon.png" }]
+  "rewrites": [
+    { "source": "/favicon.ico", "destination": "/favicon.png" },
+    { "source": "/invite", "destination": "/invite.html" }
+  ]
 }

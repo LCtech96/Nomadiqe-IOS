@@ -6,6 +6,7 @@
  * Se vedi "Connesso ✓", la rete funziona e l'errore è nell'app. Rimetti false e ricarica.
  */
 
+import 'react-native-url-polyfill/auto';
 import 'react-native-gesture-handler';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
@@ -15,6 +16,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Providers
 import { AuthProvider } from './src/contexts/AuthContext';
+import { InviteProvider } from './src/contexts/InviteContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import { I18nProvider } from './src/contexts/I18nContext';
 
@@ -43,8 +45,10 @@ export default function App() {
         <ThemeProvider>
           <I18nProvider>
             <AuthProvider>
-              <RootNavigator />
-              <StatusBar style="auto" />
+              <InviteProvider>
+                <RootNavigator />
+                <StatusBar style="auto" />
+              </InviteProvider>
             </AuthProvider>
           </I18nProvider>
         </ThemeProvider>

@@ -1,10 +1,10 @@
 /**
  * Verify Email Screen
- * Email verification message
+ * Messaggio "controlla la tua email" + pulsante per inviare di nuovo l'email di conferma
  */
 
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -12,12 +12,14 @@ import { Button } from '../../components/ui';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useI18n } from '../../contexts/I18nContext';
 import { theme } from '../../theme';
+import { AuthService } from '../../services/auth.service';
 import type { AuthScreenProps } from '../../types/navigation';
 
 export default function VerifyEmailScreen({ navigation, route }: AuthScreenProps<'VerifyEmail'>) {
   const { isDark } = useTheme();
   const { t } = useI18n();
   const { email } = route.params;
+  const [resending, setResending] = useState(false);
 
   const backgroundColor = isDark
     ? theme.colors.dark.background
@@ -74,16 +76,36 @@ export default function VerifyEmailScreen({ navigation, route }: AuthScreenProps
             },
           ]}
         >
-          Please check your inbox and click the verification link to continue
+          {t('auth.verifyEmailInstructions')}
         </Text>
 
-        {/* Actions */}
+        <Button
+          onPress={async () => {
+            try {
+              setResending(true);
+              await AuthService.resendVerificationEmail(email);
+              Alert.alert(t('common.success'), t('auth.resendVerificationSuccess'));
+            } catch (e: any) {
+              Alert.alert(t('common.error'), e?.message ?? t('auth.resendVerificationError'));
+            } finally {
+              setResending(false);
+            }
+          }}
+          loading={resending}
+          disabled={resending}
+          variant="outline"
+          size="lg"
+          style={styles.resendButton}
+        >
+          {t('auth.resendVerificationEmail')}
+        </Button>
+
         <Button
           onPress={() => navigation.navigate('SignIn')}
           size="lg"
           style={styles.button}
         >
-          Back to Sign In
+          {t('auth.backToSignIn')}
         </Button>
       </View>
     </SafeAreaView>
@@ -123,8 +145,12 @@ const styles = StyleSheet.create({
   instructions: {
     ...theme.typography.subheadline,
     textAlign: 'center',
-    marginBottom: theme.spacing['4xl'],
+    marginBottom: theme.spacing.xl,
     paddingHorizontal: theme.spacing.lg,
+  },
+  resendButton: {
+    width: '100%',
+    marginBottom: theme.spacing.md,
   },
   button: {
     width: '100%',

@@ -61,6 +61,8 @@ export interface Post {
   is_bookmarked?: boolean;
 }
 
+export type CommentApprovalStatus = 'pending' | 'approved' | 'rejected';
+
 export interface PostComment {
   id: string;
   post_id: string;
@@ -68,6 +70,7 @@ export interface PostComment {
   parent_comment_id: string | null;
   
   content: string;
+  approval_status?: CommentApprovalStatus;
   likes_count: number;
   replies_count: number;
   

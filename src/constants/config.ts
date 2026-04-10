@@ -15,6 +15,10 @@ export const config = {
     name: 'Nomadiqe',
     version: '1.0.0',
     bundleId: 'com.nomadiqe.ios',
+    /** Base URL per esportazione calendario iCal (Airbnb/Booking import). Es: https://xxx.supabase.co/functions/v1/ical-export */
+    calendarExportBaseUrl: process.env.EXPO_PUBLIC_CALENDAR_EXPORT_BASE_URL || '',
+    /** Schema deep link per condivisione struttura. Es: nomadiqe (→ nomadiqe://property/ID) */
+    shareScheme: 'nomadiqe',
   },
 
   // API
@@ -28,6 +32,12 @@ export const config = {
     maxVideoSize: 100 * 1024 * 1024, // 100MB
     allowedImageTypes: ['image/jpeg', 'image/png', 'image/webp'],
     allowedVideoTypes: ['video/mp4', 'video/quicktime'],
+  },
+
+  // Property media (host)
+  propertyMedia: {
+    maxPhotosPerProperty: 50,
+    maxVideosPerMonthPerProperty: 5,
   },
 
   // Pagination

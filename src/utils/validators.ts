@@ -32,6 +32,13 @@ export const usernameSchema = z
   .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores');
 
 /**
+ * Bio (descrizione breve) max 30 caratteri
+ */
+export const bioSchema = z
+  .string()
+  .max(30, 'La descrizione può avere al massimo 30 caratteri');
+
+/**
  * Validate email
  */
 export function isValidEmail(email: string): boolean {

@@ -1,23 +1,28 @@
 /**
  * Jolly Onboarding Screen
- * Onboarding specifico per jolly/service providers
+ * Onboarding specifico per jolly: descrizione servizi visibile agli host in KOL&BED
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button } from '../../components/ui';
+import { Button, Input } from '../../components/ui';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useI18n } from '../../contexts/I18nContext';
 import { theme } from '../../theme';
 import { AuthService } from '../../services/auth.service';
 import type { OnboardingScreenProps } from '../../types/navigation';
 
+const BIO_MAX = 30;
+
 export default function JollyOnboardingScreen({ navigation }: OnboardingScreenProps<'JollyOnboarding'>) {
   const { user, refreshProfile } = useAuth();
   const { isDark } = useTheme();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
+  const [servicesDescription, setServicesDescription] = useState('');
 
   const handleComplete = async () => {
     if (!user) return;
@@ -25,11 +30,12 @@ export default function JollyOnboardingScreen({ navigation }: OnboardingScreenPr
     try {
       setLoading(true);
       await AuthService.updateProfile(user.id, {
+        bio: servicesDescription.trim().slice(0, BIO_MAX) || null,
         onboarding_completed: true,
       });
       await refreshProfile();
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to complete onboarding');
+    } catch (error: unknown) {
+      Alert.alert(t('common.error'), (error as Error)?.message || t('onboarding.saveError'));
     } finally {
       setLoading(false);
     }
@@ -43,56 +49,63 @@ export default function JollyOnboardingScreen({ navigation }: OnboardingScreenPr
     ? theme.colors.dark.label
     : theme.colors.light.label;
 
+  const secondaryColor = isDark
+    ? theme.colors.dark.secondaryLabel
+    : theme.colors.light.secondaryLabel;
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={[styles.emoji]}>💼</Text>
-          <Text style={[styles.title, { color: textColor }]}>
-            Welcome, Jolly!
-          </Text>
-          <Text
-            style={[
-              styles.subtitle,
-              {
-                color: isDark
-                  ? theme.colors.dark.secondaryLabel
-                  : theme.colors.light.secondaryLabel,
-              },
-            ]}
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={80}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <View style={styles.header}>
+            <Text style={styles.emoji}>💼</Text>
+            <Text style={[styles.title, { color: textColor }]}>{t('onboarding.jollyWelcome')}</Text>
+            <Text style={[styles.subtitle, { color: secondaryColor }]}>
+              {t('onboarding.jollySubcategorySubtitle')}
+            </Text>
+            <Text style={[styles.visibleToHosts, { color: secondaryColor }]}>
+              {t('onboarding.jollyVisibleToHosts')}
+            </Text>
+          </View>
+
+          <View style={styles.features}>
+            <FeatureItem
+              icon="🛠️"
+              title="List Your Services"
+              description="Cleaning, maintenance, photography, and more"
+            />
+            <FeatureItem
+              icon="📅"
+              title="Manage Requests"
+              description="Receive and handle service requests"
+            />
+            <FeatureItem
+              icon="⭐"
+              title="Build Reputation"
+              description="Get reviews and grow your business"
+            />
+          </View>
+
+          <Input
+            label={t('onboarding.jollyServicesDescription')}
+            placeholder={t('onboarding.jollyServicesPlaceholder')}
+            value={servicesDescription}
+            onChangeText={(v) => setServicesDescription(v.slice(0, BIO_MAX))}
+            containerStyle={styles.inputRow}
+            helperText={`${servicesDescription.length}/${BIO_MAX}`}
+          />
+
+          <Button
+            onPress={handleComplete}
+            loading={loading}
+            disabled={loading}
+            size="lg"
+            style={styles.button}
           >
-            Offer your professional services to the Nomadiqe community
-          </Text>
-        </View>
-
-        <View style={styles.features}>
-          <FeatureItem
-            icon="🛠️"
-            title="List Your Services"
-            description="Cleaning, maintenance, photography, and more"
-          />
-          <FeatureItem
-            icon="📅"
-            title="Manage Requests"
-            description="Receive and handle service requests"
-          />
-          <FeatureItem
-            icon="⭐"
-            title="Build Reputation"
-            description="Get reviews and grow your business"
-          />
-        </View>
-
-        <Button
-          onPress={handleComplete}
-          loading={loading}
-          disabled={loading}
-          size="lg"
-          style={styles.button}
-        >
-          Start Offering Services
-        </Button>
-      </View>
+            {t('onboarding.jollyComplete')}
+          </Button>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -114,18 +127,23 @@ function FeatureItem({ icon, title, description }: { icon: string; title: string
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
+  container: { flex: 1 },
+  flex: { flex: 1 },
+  scrollContent: {
     padding: theme.spacing.screenPadding,
-    justifyContent: 'space-between',
+    paddingBottom: theme.spacing['3xl'],
   },
   header: {
     alignItems: 'center',
-    marginTop: theme.spacing['4xl'],
+    marginBottom: theme.spacing.xl,
   },
+  visibleToHosts: {
+    ...theme.typography.footnote,
+    textAlign: 'center',
+    marginTop: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+  },
+  inputRow: { marginBottom: theme.spacing.lg },
   emoji: {
     fontSize: 80,
     marginBottom: theme.spacing.lg,
@@ -142,7 +160,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
   },
   features: {
-    gap: theme.spacing['2xl'],
+    gap: theme.spacing.lg,
+    marginBottom: theme.spacing.xl,
   },
   featureItem: {
     flexDirection: 'row',

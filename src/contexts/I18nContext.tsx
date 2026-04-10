@@ -31,17 +31,18 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     loadLocale();
   }, []);
 
+  const SUPPORTED_LOCALES: Language[] = ['it', 'en', 'ru', 'zh', 'fr', 'ur', 'bn', 'de', 'fa', 'ar', 'es'];
+
   const loadLocale = async () => {
     try {
       const savedLocale = await AsyncStorage.getItem(LOCALE_STORAGE_KEY);
-      if (savedLocale && (savedLocale === 'it' || savedLocale === 'en' || savedLocale === 'ru' || savedLocale === 'fr' || savedLocale === 'de')) {
-        setLocaleState(savedLocale);
+      if (savedLocale && SUPPORTED_LOCALES.includes(savedLocale as Language)) {
+        setLocaleState(savedLocale as Language);
         i18n.locale = savedLocale;
       } else {
-        // Use system locale
         const systemLocale = Localization.getLocales()[0]?.languageCode || 'en';
-        const supportedLocale: Language = ['it', 'en', 'ru', 'fr', 'de'].includes(systemLocale) 
-          ? systemLocale as Language 
+        const supportedLocale: Language = SUPPORTED_LOCALES.includes(systemLocale as Language)
+          ? (systemLocale as Language)
           : 'en';
         setLocaleState(supportedLocale);
         i18n.locale = supportedLocale;

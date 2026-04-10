@@ -46,10 +46,16 @@ export interface Property {
   base_price_per_night: number;
   currency: string;
   cleaning_fee: number | null;
+  /** Sconto % per soggiorni > 5 notti (5, 10 o personalizzato) */
+  discount_5_nights_percent?: number | null;
+  /** Sconto % per soggiorni > 14 notti (personalizzato) */
+  discount_14_nights_percent?: number | null;
   
   // Media
   images: string[];
   video_url: string | null;
+  /** Video caricati con data (per limite 5/mese). In DB: video_uploads jsonb. */
+  video_uploads?: { url: string; uploaded_at: string }[];
   virtual_tour_url: string | null;
   
   // Amenities
@@ -66,6 +72,17 @@ export interface Property {
   is_active: boolean;
   is_featured: boolean;
   instant_book: boolean;
+
+  // Onboarding / KOL&BED
+  /** Tier per visibilità creator: basic, basic_paid, medium, medium_fees, luxury, luxury_paid */
+  offer_type?: 'basic' | 'basic_paid' | 'medium' | 'medium_fees' | 'luxury' | 'luxury_paid' | null;
+  structure_type?: string | null;
+  collaboration_booking_mode?: 'approve_first_5' | 'instant' | null;
+  first_guest_type?: 'any_creator' | 'verified_creator' | null;
+  weekend_supplement_percent?: number | null;
+  kolbed_program?: 'kolbed_100' | 'gigo_50' | 'paid_collab' | null;
+  paid_collab_min_budget?: number | null;
+  paid_collab_max_budget?: number | null;
   
   // Stats
   views_count: number;
@@ -73,6 +90,11 @@ export interface Property {
   bookings_count: number;
   average_rating: number | null;
   reviews_count: number;
+
+  // Calendar sync (Airbnb / Booking.com iCal import)
+  airbnb_ical_import_url?: string | null;
+  booking_ical_import_url?: string | null;
+  calendar_sync_last_at?: string | null;
   
   // Timestamps
   created_at: string;

@@ -4,7 +4,9 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
+    "start:clear": "expo start --clear",
     "start:lan": "node scripts/start-lan.js",
+    "seed:creators-jolly": "node scripts/seed-creators-and-jolly.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
@@ -25,6 +27,7 @@
     "date-fns": "^4.1.0",
     "expo": "~54.0.33",
     "expo-auth-session": "^7.0.10",
+    "expo-clipboard": "~8.0.2",
     "expo-blur": "^15.0.8",
     "expo-haptics": "^15.0.8",
     "expo-image": "^3.0.11",

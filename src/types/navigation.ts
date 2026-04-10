@@ -21,6 +21,15 @@ export type AuthStackParamList = {
 export type OnboardingStackParamList = {
   Welcome: undefined;
   RoleSelection: undefined;
+  JollySubcategory: undefined;
+  ProfileCompletion: { role?: UserRole };
+  HostPropertyTypeSelection: undefined;
+  HostPropertyBasicInfo: undefined;
+  HostPropertyAmenities: undefined;
+  HostPropertyPhotos: undefined;
+  HostCollaborationSettings: { propertyId: string };
+  HostKolbedProgram: { propertyId: string };
+  HostBasePrice: { propertyId: string };
   HostOnboarding: undefined;
   CreatorOnboarding: undefined;
   JollyOnboarding: undefined;
@@ -63,6 +72,27 @@ export type ProfileStackParamList = {
   Favorites: undefined;
   Bookings: undefined;
   Dashboard: undefined;
+  HostStructure: { propertyId?: string };
+  HostStructureView: { propertyId: string };
+  EditStructure: { propertyId: string };
+  NewPropertyOnboarding: undefined;
+  Admin: undefined;
+  MessagesList: undefined;
+  NewConversation: undefined;
+  Conversation: { recipientId: string; recipientName: string };
+  Notifications: undefined;
+  RequestSupport: undefined;
+  SupportConversation: { ticketId?: string };
+  AdminSupportTicket: { ticketId: string };
+  HostCollaborationRequestDetail: { requestId: string };
+  /** Host: link pagamento / anteprima per viaggiatori */
+  HostTravelerLink: undefined;
+  ViewUserProfile: { userId: string };
+  AffiliateLinkRequests: undefined;
+  JollyProductList: { jollyId: string };
+  JollyMyProducts: undefined;
+  /** Dettaglio post: immagini, like, commenti (stesso stack del profilo) */
+  PostDetail: { postId: string };
 };
 
 // Dashboard Stack (per ruolo)
@@ -101,6 +131,8 @@ export type CommunitiesStackParamList = {
 // Root Stack (top level)
 export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList>;
+  /** Flusso ospite: vista struttura da link + Sign Up se torna indietro */
+  GuestStack: { propertyId: string };
   Onboarding: NavigatorScreenParams<OnboardingStackParamList>;
   Main: NavigatorScreenParams<MainTabParamList>;
   // Modal screens
@@ -125,3 +157,6 @@ export type HomeScreenProps<T extends keyof HomeStackParamList> =
 
 export type ProfileScreenProps<T extends keyof ProfileStackParamList> = 
   NativeStackScreenProps<ProfileStackParamList, T>;
+
+export type RootStackScreenProps<T extends keyof RootStackParamList> =
+  NativeStackScreenProps<RootStackParamList, T>;

@@ -3,7 +3,7 @@
  * Selezione del ruolo utente (Host, Creator, Jolly)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,47 +11,43 @@ import * as Haptics from 'expo-haptics';
 
 import { Button, Card } from '../../components/ui';
 import { useAuth } from '../../contexts/AuthContext';
+import { useInvite } from '../../contexts/InviteContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useI18n } from '../../contexts/I18nContext';
 import { theme } from '../../theme';
 import { AuthService } from '../../services/auth.service';
+import { getInviteByCode } from '../../services/invitations.service';
 import type { OnboardingScreenProps } from '../../types/navigation';
 import type { UserRole } from '../../types';
 
 interface RoleOption {
   role: UserRole;
   icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  description: string;
 }
 
 const roleOptions: RoleOption[] = [
-  {
-    role: 'host',
-    icon: 'home',
-    title: 'Host',
-    description: 'Manage your properties and accept collaborations with creators',
-  },
-  {
-    role: 'creator',
-    icon: 'camera',
-    title: 'Creator',
-    description: 'Create content and collaborate with hosts for unique stays',
-  },
-  {
-    role: 'jolly',
-    icon: 'briefcase',
-    title: 'Jolly',
-    description: 'Offer professional services to hosts and creators',
-  },
+  { role: 'host', icon: 'home' },
+  { role: 'creator', icon: 'camera' },
+  { role: 'jolly', icon: 'briefcase' },
 ];
 
 export default function RoleSelectionScreen({ navigation }: OnboardingScreenProps<'RoleSelection'>) {
   const { user, refreshProfile } = useAuth();
+  const { pendingInviteCode } = useInvite();
   const { isDark } = useTheme();
   const { t } = useI18n();
   const [selectedRole, setSelectedRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(false);
+
+  // Se l'utente è arrivato da un link invito, pre-seleziona il ruolo (host o creator)
+  useEffect(() => {
+    if (!pendingInviteCode) return;
+    getInviteByCode(pendingInviteCode)
+      .then((inv) => {
+        if (inv?.role) setSelectedRole(inv.role);
+      })
+      .catch(() => {});
+  }, [pendingInviteCode]);
 
   const handleRoleSelect = (role: UserRole) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -69,20 +65,18 @@ export default function RoleSelectionScreen({ navigation }: OnboardingScreenProp
       await AuthService.updateProfile(user.id, { role: selectedRole });
       await refreshProfile();
 
-      // Navigate to role-specific onboarding
+      // Navigate: jolly → sottocategoria, poi tutti → ProfileCompletion (passiamo il ruolo per evitare race sul profile)
       switch (selectedRole) {
         case 'host':
-          navigation.navigate('HostOnboarding');
-          break;
         case 'creator':
-          navigation.navigate('CreatorOnboarding');
+          navigation.navigate('ProfileCompletion', { role: selectedRole });
           break;
         case 'jolly':
-          navigation.navigate('JollyOnboarding');
+          navigation.navigate('JollySubcategory');
           break;
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to update role');
+      Alert.alert(t('common.error'), error.message || t('onboarding.roleError'));
     } finally {
       setLoading(false);
     }
@@ -98,6 +92,9 @@ export default function RoleSelectionScreen({ navigation }: OnboardingScreenProp
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
+      <TouchableOpacity style={styles.backRow} onPress={() => navigation.goBack()}>
+        <Ionicons name="arrow-back" size={24} color={textColor} />
+      </TouchableOpacity>
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
@@ -114,7 +111,7 @@ export default function RoleSelectionScreen({ navigation }: OnboardingScreenProp
               },
             ]}
           >
-            Choose your role to get started with Nomadiqe
+            {t('roles.selectRoleSubtitle')}
           </Text>
         </View>
 
@@ -158,7 +155,7 @@ export default function RoleSelectionScreen({ navigation }: OnboardingScreenProp
                   )}
                 </View>
                 <Text style={[styles.roleTitle, { color: textColor }]}>
-                  {option.title}
+                  {t(`roles.${option.role}`)}
                 </Text>
                 <Text
                   style={[
@@ -170,7 +167,7 @@ export default function RoleSelectionScreen({ navigation }: OnboardingScreenProp
                     },
                   ]}
                 >
-                  {option.description}
+                  {t(`roles.${option.role}Description`)}
                 </Text>
               </Card>
             </TouchableOpacity>
@@ -185,7 +182,7 @@ export default function RoleSelectionScreen({ navigation }: OnboardingScreenProp
           size="lg"
           style={styles.continueButton}
         >
-          Continue
+          {t('onboarding.continue')}
         </Button>
       </View>
     </SafeAreaView>
@@ -195,6 +192,12 @@ export default function RoleSelectionScreen({ navigation }: OnboardingScreenProp
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.screenPadding,
+    paddingVertical: theme.spacing.md,
   },
   content: {
     flex: 1,

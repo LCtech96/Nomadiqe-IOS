@@ -49,17 +49,17 @@ export default function ForgotPasswordScreen({ navigation }: AuthScreenProps<'Fo
       setLoading(true);
       await AuthService.resetPassword(data.email);
       Alert.alert(
-        'Success',
-        'Password reset link has been sent to your email',
+        t('auth.resetEmailSent'),
+        t('auth.resetEmailSentMessage'),
         [
           {
-            text: 'OK',
+            text: t('common.ok'),
             onPress: () => navigation.goBack(),
           },
         ]
       );
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to send reset email');
+      Alert.alert(t('common.error'), error.message || t('auth.resetEmailError'));
     } finally {
       setLoading(false);
     }
@@ -105,7 +105,7 @@ export default function ForgotPasswordScreen({ navigation }: AuthScreenProps<'Fo
               },
             ]}
           >
-            Enter your email and we'll send you a link to reset your password
+            {t('auth.resetPasswordSubtitle')}
           </Text>
         </View>
 

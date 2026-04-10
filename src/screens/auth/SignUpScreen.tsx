@@ -25,27 +25,31 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useI18n } from '../../contexts/I18nContext';
 import { theme } from '../../theme';
-import { emailSchema, passwordSchema, usernameSchema } from '../../utils/validators';
+import { emailSchema, passwordSchema } from '../../utils/validators';
 import type { AuthScreenProps } from '../../types/navigation';
 
-const signUpSchema = z.object({
-  fullName: z.string().min(2, 'Full name must be at least 2 characters'),
-  username: usernameSchema,
-  email: emailSchema,
-  password: passwordSchema,
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ['confirmPassword'],
-});
-
-type SignUpFormData = z.infer<typeof signUpSchema>;
+type SignUpFormData = { email: string; password: string; confirmPassword: string };
 
 export default function SignUpScreen({ navigation }: AuthScreenProps<'SignUp'>) {
   const { signUp } = useAuth();
   const { isDark } = useTheme();
   const { t } = useI18n();
   const [loading, setLoading] = useState(false);
+
+  const signUpSchema = React.useMemo(
+    () =>
+      z
+        .object({
+          email: emailSchema,
+          password: passwordSchema,
+          confirmPassword: z.string(),
+        })
+        .refine((data) => data.password === data.confirmPassword, {
+          message: t('auth.passwordsDontMatch'),
+          path: ['confirmPassword'],
+        }),
+    [t]
+  );
 
   const {
     control,
@@ -61,12 +65,12 @@ export default function SignUpScreen({ navigation }: AuthScreenProps<'SignUp'>) 
       await signUp({
         email: data.email,
         password: data.password,
-        fullName: data.fullName,
-        username: data.username,
+        fullName: '',
+        username: undefined,
       });
       navigation.navigate('VerifyEmail', { email: data.email });
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to sign up');
+      Alert.alert(t('common.error'), error.message || t('auth.signUpError'));
     } finally {
       setLoading(false);
     }
@@ -117,42 +121,8 @@ export default function SignUpScreen({ navigation }: AuthScreenProps<'SignUp'>) 
             </Text>
           </View>
 
-          {/* Form */}
+          {/* Form - solo email e password; nome utente e profilo nella fase onboarding */}
           <View style={styles.form}>
-            <Controller
-              control={control}
-              name="fullName"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input
-                  label={t('auth.fullName')}
-                  placeholder="John Doe"
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  error={errors.fullName?.message}
-                  autoCapitalize="words"
-                  autoComplete="name"
-                />
-              )}
-            />
-
-            <Controller
-              control={control}
-              name="username"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input
-                  label={t('auth.username')}
-                  placeholder="johndoe"
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  error={errors.username?.message}
-                  autoCapitalize="none"
-                  autoComplete="username"
-                />
-              )}
-            />
-
             <Controller
               control={control}
               name="email"
@@ -183,6 +153,7 @@ export default function SignUpScreen({ navigation }: AuthScreenProps<'SignUp'>) 
                   onBlur={onBlur}
                   error={errors.password?.message}
                   secureTextEntry
+                  showPasswordToggle
                   autoCapitalize="none"
                   autoComplete="password"
                 />
@@ -201,6 +172,7 @@ export default function SignUpScreen({ navigation }: AuthScreenProps<'SignUp'>) 
                   onBlur={onBlur}
                   error={errors.confirmPassword?.message}
                   secureTextEntry
+                  showPasswordToggle
                   autoCapitalize="none"
                 />
               )}

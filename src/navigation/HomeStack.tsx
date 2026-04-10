@@ -7,17 +7,9 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { HomeStackParamList } from '../types/navigation';
 
-// Import screens (to be created)
 import HomeFeedScreen from '../screens/home/HomeFeedScreen';
-
-// Placeholder screens
-import { View, Text } from 'react-native';
-
-const PostDetailScreen = () => (
-  <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-    <Text>Post Detail</Text>
-  </View>
-);
+import CommentsScreen from '../screens/home/CommentsScreen';
+import PostDetailScreen from '../screens/home/PostDetailScreen';
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 
@@ -30,7 +22,12 @@ export function HomeStack() {
       }}
     >
       <Stack.Screen name="HomeFeed" component={HomeFeedScreen} />
-      <Stack.Screen name="PostDetail" component={PostDetailScreen} />
+      <Stack.Screen
+        name="PostDetail"
+        component={PostDetailScreen}
+        options={{ gestureEnabled: true, fullScreenGestureEnabled: true }}
+      />
+      <Stack.Screen name="Comments" component={CommentsScreen} />
     </Stack.Navigator>
   );
 }

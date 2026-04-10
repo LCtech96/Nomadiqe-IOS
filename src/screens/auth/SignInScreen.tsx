@@ -28,18 +28,22 @@ import { theme } from '../../theme';
 import { emailSchema, passwordSchema } from '../../utils/validators';
 import type { AuthScreenProps } from '../../types/navigation';
 
-const signInSchema = z.object({
-  email: emailSchema,
-  password: z.string().min(1, 'Password is required'),
-});
-
-type SignInFormData = z.infer<typeof signInSchema>;
+type SignInFormData = { email: string; password: string };
 
 export default function SignInScreen({ navigation }: AuthScreenProps<'SignIn'>) {
   const { signIn } = useAuth();
   const { isDark } = useTheme();
   const { t } = useI18n();
   const [loading, setLoading] = useState(false);
+
+  const signInSchema = React.useMemo(
+    () =>
+      z.object({
+        email: emailSchema,
+        password: z.string().min(1, t('auth.passwordRequired')),
+      }),
+    [t]
+  );
 
   const {
     control,
@@ -54,7 +58,7 @@ export default function SignInScreen({ navigation }: AuthScreenProps<'SignIn'>) 
       setLoading(true);
       await signIn(data.email, data.password);
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to sign in');
+      Alert.alert(t('common.error'), error.message || t('auth.signInError'));
     } finally {
       setLoading(false);
     }
@@ -129,6 +133,7 @@ export default function SignInScreen({ navigation }: AuthScreenProps<'SignIn'>) 
                   onBlur={onBlur}
                   error={errors.password?.message}
                   secureTextEntry
+                  showPasswordToggle
                   autoCapitalize="none"
                   autoComplete="password"
                 />
