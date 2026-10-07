@@ -60,7 +60,10 @@
           "color": "#4F46E5"
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      "expo-image",
+      "expo-status-bar",
+      "expo-font"
     ],
     "scheme": "nomadiqe",
     "extra": {
