@@ -4,7 +4,7 @@
  * Tap left/right on image to change photo; thin progress indicator on top.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { theme } from '../../theme';
 import { LANGUAGE_OPTIONS, type Language } from '../../constants/translations';
 import { JollyService, type JollyRestaurantInfo, type JollyRatingSummary } from '../../services/jolly.service';
+import { JollyLocalServicesService } from '../../services/jollyLocalServices.service';
 import type { UserProfile } from '../../types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -70,8 +71,8 @@ export interface KolbedCreatorCardProps {
   onPressViewCatalog?: (jollyId: string) => void;
 }
 
-const JOLLY_RATING_SUBCATEGORIES = ['cleaner', 'property_manager', 'assistenza', 'autista', 'fornitore'];
-const JOLLY_EXCURSION_SUBCATEGORIES = ['excursions', 'boat_excursions'];
+const JOLLY_RATING_SUBCATEGORIES = ['cleaner', 'property_manager', 'fornitore'];
+const JOLLY_EXCURSION_SUBCATEGORIES = ['excursions', 'boat_excursions'] as const;
 const JOLLY_HOME_PRODUCTS = 'home_products';
 
 export function KolbedCreatorCard({ profile, onPressLanguages, onReject, onAccept, onPressViewCatalog }: KolbedCreatorCardProps) {
@@ -83,16 +84,20 @@ export function KolbedCreatorCard({ profile, onPressLanguages, onReject, onAccep
   const [canVote, setCanVote] = useState(false);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [productCount, setProductCount] = useState<number>(0);
+  const [approvedCoverUrls, setApprovedCoverUrls] = useState<string[]>([]);
 
   const isJolly = profile.role === 'jolly';
   const jollySub = (profile.jolly_subcategory ?? '') as string;
   const isRestaurantJolly = isJolly && jollySub === 'restaurant';
   const isRatingJolly = isJolly && JOLLY_RATING_SUBCATEGORIES.includes(jollySub);
-  const isExcursionJolly = isJolly && JOLLY_EXCURSION_SUBCATEGORIES.includes(jollySub);
+  const isExcursionJolly = isJolly && (JOLLY_EXCURSION_SUBCATEGORIES as readonly string[]).includes(jollySub);
   const isHomeProductsJolly = isJolly && jollySub === JOLLY_HOME_PRODUCTS;
 
   useEffect(() => {
     if (!isJolly || !profile.id) return;
+    JollyLocalServicesService.getApprovedCoverUrlsForJolly(profile.id)
+      .then(setApprovedCoverUrls)
+      .catch(() => setApprovedCoverUrls([]));
     if (isRestaurantJolly) {
       JollyService.getRestaurantInfo(profile.id).then(setRestaurantInfo).catch(() => setRestaurantInfo(null));
       return;
@@ -129,9 +134,14 @@ export function KolbedCreatorCard({ profile, onPressLanguages, onReject, onAccep
     if (url && url.startsWith('http')) Linking.openURL(url).catch(() => {});
   };
 
-  const photos =
-    (profile as { profile_cover_images?: string[] | null }).profile_cover_images?.filter(Boolean) ??
-    (profile.avatar_url ? [profile.avatar_url] : []);
+  const photos = useMemo(() => {
+    const fromProfile =
+      (profile as { profile_cover_images?: string[] | null }).profile_cover_images?.filter(Boolean) ?? [];
+    const merged = [...fromProfile, ...approvedCoverUrls];
+    const unique = [...new Set(merged.filter((u): u is string => Boolean(u && u.trim())))];
+    if (unique.length > 0) return unique;
+    return profile.avatar_url ? [profile.avatar_url] : [];
+  }, [profile, approvedCoverUrls]);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [languagesModalVisible, setLanguagesModalVisible] = useState(false);
 
@@ -351,7 +361,7 @@ export function KolbedCreatorCard({ profile, onPressLanguages, onReject, onAccep
             <>
               <Text style={[styles.analyticsHint, { color: secondaryColor }]}>{t('kolbed.scrollUpForAnalytics')}</Text>
               <Text style={[styles.analyticsSectionLabel, { color: textColor }]}>
-                {jollySub === 'boat_excursions' ? t('kolbed.jollyBoatExcursionsTitle') : t('kolbed.jollyExcursionsTitle')}
+                {t('kolbed.jollyExcursionsTitle')}
               </Text>
               {profile.bio ? (
                 <Text style={[styles.analyticsValue, { color: textColor }]}>{profile.bio}</Text>
@@ -508,7 +518,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(60,60,60,0.98)',
   },
   coverImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
   },

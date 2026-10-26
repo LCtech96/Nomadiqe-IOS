@@ -1,8 +1,9 @@
 /**
- * KOL&BED Screen
+ * Noma Hub Screen
  * Host  → vede Creator (swipe) oppure Jolly filtrati per subcategoria (swipe)
  * Creator → vede Host (swipe) con badge tier gratuito/a pagamento
  * Jolly → vede Host e Creator
+ * Il piano free limita la directory a FREE_TIER_VISIBLE_LIMIT elementi.
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -21,6 +22,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { format, parseISO } from 'date-fns';
+import { it, enUS } from 'date-fns/locale';
 
 import { Card, Avatar, Badge, BioText } from '../../components/ui';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -32,6 +35,8 @@ import { PropertiesService } from '../../services/properties.service';
 import { CollaborationService } from '../../services/collaboration.service';
 import { KolbedSwipeStack } from './KolbedSwipeStack';
 import { CollaborationRequestSheet } from './CollaborationRequestSheet';
+import { NomaHubUpgradeBanner } from '../../components/kolbed/NomaHubUpgradeBanner';
+import { applyDirectoryLimit, isTrialActive } from '../../utils/subscription';
 import type { UserProfile } from '../../types';
 import type { UserRole } from '../../types/user';
 import type { Property } from '../../types/property';
@@ -46,14 +51,11 @@ const JOLLY_SUBCATEGORIES = [
   { key: 'all', labelKey: 'kolbed.jollySubAll' as const },
   { key: 'restaurant', labelKey: 'kolbed.jollySubRestaurant' as const },
   { key: 'cleaner', labelKey: 'kolbed.jollySubCleaner' as const },
-  { key: 'autista', labelKey: 'kolbed.jollySubAutista' as const },
   { key: 'photographer', labelKey: 'kolbed.jollySubPhotographer' as const },
   { key: 'social_media_manager', labelKey: 'kolbed.jollySubSMM' as const },
   { key: 'pharmacy', labelKey: 'kolbed.jollySubPharmacy' as const },
   { key: 'excursions', labelKey: 'kolbed.jollySubExcursions' as const },
-  { key: 'boat_excursions', labelKey: 'kolbed.jollySubBoatExcursions' as const },
   { key: 'home_products', labelKey: 'kolbed.jollySubHomeProducts' as const },
-  { key: 'assistenza', labelKey: 'kolbed.jollySubAssistenza' as const },
   { key: 'property_manager', labelKey: 'kolbed.jollySubPropertyManager' as const },
   { key: 'fornitore', labelKey: 'kolbed.jollySubFornitore' as const },
 ] as const;
@@ -91,7 +93,8 @@ export default function KOLBEDScreen() {
   const navigation = useNavigation();
   const { profile } = useAuth();
   const { isDark } = useTheme();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const dateFnsLocale = locale === 'it' ? it : enUS;
 
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [structures, setStructures] = useState<Property[]>([]);
@@ -120,6 +123,8 @@ export default function KOLBEDScreen() {
     myRole && myRole in ROLES_FOR_OTHER && !isHost
       ? ROLES_FOR_OTHER[myRole as keyof typeof ROLES_FOR_OTHER]
       : [];
+
+  const trialActive = isTrialActive(profile);
 
   const creatorStatus = profile?.creator_status ?? null;
   const creatorApproved = isCreator && creatorStatus === 'approved';
@@ -199,6 +204,11 @@ export default function KOLBEDScreen() {
     // Jolly
     const jollyList = users.filter((u) => u.role === 'jolly');
     if (jollySubFilter === 'all') return jollyList;
+    if (jollySubFilter === 'excursions') {
+      return jollyList.filter(
+        (u) => u.jolly_subcategory === 'excursions' || u.jolly_subcategory === 'boat_excursions'
+      );
+    }
     return jollyList.filter((u) => u.jolly_subcategory === jollySubFilter);
   }, [isHost, users, hostFilter, jollySubFilter]);
 
@@ -207,14 +217,29 @@ export default function KOLBEDScreen() {
     [isCreator, users]
   );
 
+  // ── Subscription gating: il piano free vede solo i primi N elementi ────
+  const visibleHostUsers = useMemo(
+    () => applyDirectoryLimit(hostFilteredUsers, profile),
+    [hostFilteredUsers, profile]
+  );
+  const visibleCreatorHostUsers = useMemo(
+    () => applyDirectoryLimit(creatorHostUsers, profile),
+    [creatorHostUsers, profile]
+  );
+  const visibleStructures = useMemo(
+    () => applyDirectoryLimit(structures, profile),
+    [structures, profile]
+  );
+  const visibleOtherUsers = useMemo(() => applyDirectoryLimit(users, profile), [users, profile]);
+
   // ── Sync swipe stack ───────────────────────────────────────────────────
   useEffect(() => {
-    if (isHost) setSwipeStack(hostFilteredUsers);
-  }, [isHost, hostFilteredUsers]);
+    if (isHost) setSwipeStack(visibleHostUsers);
+  }, [isHost, visibleHostUsers]);
 
   useEffect(() => {
-    if (isCreator && creatorViewMode === 'hosts') setSwipeStack(creatorHostUsers);
-  }, [isCreator, creatorViewMode, creatorHostUsers]);
+    if (isCreator && creatorViewMode === 'hosts') setSwipeStack(visibleCreatorHostUsers);
+  }, [isCreator, creatorViewMode, visibleCreatorHostUsers]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -245,6 +270,10 @@ export default function KOLBEDScreen() {
 
   const removeProfileFromStack = (id: string) =>
     setSwipeStack((prev) => prev.filter((x) => x.id !== id));
+
+  const handleUpgrade = () => {
+    Alert.alert(t('kolbed.upgradeSoonTitle'), t('kolbed.upgradeSoonBody'));
+  };
 
   const handleViewCatalog = (jollyId: string) => {
     (navigation.getParent() as { navigate: (name: string, params?: { screen: string; params: { jollyId: string } }) => void } | undefined)
@@ -281,6 +310,13 @@ export default function KOLBEDScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: textColor }]}>{t('nav.kolbed')}</Text>
+        {trialActive && profile?.trial_ends_at && (
+          <Text style={[styles.trialNotice, { color: secondaryColor }]}>
+            {t('kolbed.trialActive', {
+              date: format(parseISO(profile.trial_ends_at), 'd MMM yyyy', { locale: dateFnsLocale }),
+            })}
+          </Text>
+        )}
       </View>
 
       {/* ── HOST VIEW ─────────────────────────────────────────── */}
@@ -344,6 +380,14 @@ export default function KOLBEDScreen() {
             </View>
           )}
 
+          {hostFilteredUsers.length > visibleHostUsers.length && (
+            <NomaHubUpgradeBanner
+              shown={visibleHostUsers.length}
+              total={hostFilteredUsers.length}
+              onUpgrade={handleUpgrade}
+            />
+          )}
+
           {/* Swipe stack */}
           <View style={styles.swipeArea}>
             <KolbedSwipeStack
@@ -392,6 +436,14 @@ export default function KOLBEDScreen() {
             </TouchableOpacity>
           </View>
 
+          {creatorViewMode === 'hosts' && creatorHostUsers.length > visibleCreatorHostUsers.length && (
+            <NomaHubUpgradeBanner
+              shown={visibleCreatorHostUsers.length}
+              total={creatorHostUsers.length}
+              onUpgrade={handleUpgrade}
+            />
+          )}
+
           {creatorViewMode === 'hosts' ? (
             /* Swipe Host */
             <View style={styles.swipeArea}>
@@ -413,11 +465,19 @@ export default function KOLBEDScreen() {
               showsVerticalScrollIndicator={false}
             >
               <Text style={[styles.sectionTitle, { color: textColor }]}>{t('kolbed.structuresForYou')}</Text>
-              {structures.length === 0 ? (
+              {structures.length > visibleStructures.length && (
+                <NomaHubUpgradeBanner
+                  shown={visibleStructures.length}
+                  total={structures.length}
+                  onUpgrade={handleUpgrade}
+                  style={styles.inlineBanner}
+                />
+              )}
+              {visibleStructures.length === 0 ? (
                 <Text style={[styles.emptyInline, { color: secondaryColor }]}>{t('kolbed.structuresEmpty')}</Text>
               ) : (
                 <View style={styles.structuresList}>
-                  {structures.map((prop) => {
+                  {visibleStructures.map((prop) => {
                     const freeTiers = CREATOR_FREE_TIERS[profile?.creator_category ?? ''] ?? [];
                     const isFree = !prop.offer_type || freeTiers.includes(prop.offer_type);
                     return (
@@ -441,7 +501,7 @@ export default function KOLBEDScreen() {
                                   color={isFree ? '#34C759' : '#FF9500'}
                                 />
                                 <Text style={[styles.tierBadgeText, { color: isFree ? '#34C759' : '#FF9500' }]}>
-                                  {isFree ? t('kolbed.freeMatchForYou') : t('kolbed.paidCollabRequired')}
+                                  {isFree ? t('kolbed.freeMatchForYou') : t('translations:kolbed.paidCollabRequired')}
                                 </Text>
                               </View>
                             </View>
@@ -469,11 +529,21 @@ export default function KOLBEDScreen() {
       /* ── ALTRI RUOLI (Jolly, Manager) ─────────────────────── */
       ) : (
         <FlatList
-          data={users}
+          data={visibleOtherUsers}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           refreshControl={
             <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} tintColor={theme.colors.primary.blue} />
+          }
+          ListHeaderComponent={
+            users.length > visibleOtherUsers.length ? (
+              <NomaHubUpgradeBanner
+                shown={visibleOtherUsers.length}
+                total={users.length}
+                onUpgrade={handleUpgrade}
+                style={styles.inlineBanner}
+              />
+            ) : null
           }
           renderItem={({ item }) => (
             <TouchableOpacity activeOpacity={0.7}>
@@ -516,6 +586,7 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing.sm,
   },
   headerTitle: { ...theme.typography.largeTitle, fontWeight: '700' },
+  trialNotice: { ...theme.typography.caption1, marginTop: 2 },
 
   // Filter chips (main row)
   filterRow: {
@@ -574,6 +645,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.screenPadding,
     minHeight: 0,
   },
+
+  // Upgrade banner inside already-padded scroll containers
+  inlineBanner: { marginHorizontal: 0 },
 
   // Empty states
   empty: { flex: 1, padding: theme.spacing.screenPadding, justifyContent: 'center' },

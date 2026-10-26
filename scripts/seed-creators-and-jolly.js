@@ -64,16 +64,10 @@ const JOLLY = [
   { email: 'jolly2@nomadiqe.seed', full_name: 'Roberto Clean', username: 'robertoclean', jolly_subcategory: 'cleaner', bio: 'Pulizie strutture turistiche e case vacanza. Lavoro in coppia per tempi rapidi. Costa Romagnola e entroterra.' },
   { email: 'jolly3@nomadiqe.seed', full_name: 'Laura Property', username: 'lauraproperty', jolly_subcategory: 'property_manager', bio: 'Property manager per seconde case e affitti turistici. Gestione chiavi, check-in/out, manutenzioni e rapporti con gli ospiti.' },
   { email: 'jolly4@nomadiqe.seed', full_name: 'Stefano Gestione', username: 'stefanogestione', jolly_subcategory: 'property_manager', bio: 'Gestione completa proprietà in affitto. Amministrazione, pulizie coordinate, accoglienza ospiti. Zona Firenze e Chianti.' },
-  { email: 'jolly5@nomadiqe.seed', full_name: 'Maria Assistenza', username: 'mariaassistenza', jolly_subcategory: 'assistenza', bio: 'Assistenza clienti e supporto per strutture ricettive. Prenotazioni, informazioni, gestione reclami. Disponibile 7/7.' },
-  { email: 'jolly6@nomadiqe.seed', full_name: 'Paolo Support', username: 'paolosupport', jolly_subcategory: 'assistenza', bio: 'Supporto operativo per host: prenotazioni, comunicazione con ospiti, coordinamento check-in. Lavoro da remoto.' },
-  { email: 'jolly7@nomadiqe.seed', full_name: 'Giuseppe Shuttle', username: 'giuseppeshuttle', jolly_subcategory: 'autista', bio: 'Servizio navetta e transfer aeroporto/stazione – struttura. Auto e minivan. Disponibile 24h. Roma e Fiumicino.' },
-  { email: 'jolly8@nomadiqe.seed', full_name: 'Marco Driver', username: 'marcodriver', jolly_subcategory: 'autista', bio: 'Transfer e shuttle per ospiti. Servizio NCC. Zone: Napoli, Costiera Amalfitana, aeroporto Capodichino.' },
   { email: 'jolly9@nomadiqe.seed', full_name: 'Sara Fornitore', username: 'sarafornitore', jolly_subcategory: 'fornitore', bio: 'Forniture per strutture: biancheria, amenities, prodotti per pulizie. Consegna a domicilio. Nord Italia.' },
   { email: 'jolly10@nomadiqe.seed', full_name: 'Antonio Supply', username: 'antoniosupply', jolly_subcategory: 'fornitore', bio: 'Fornitore per B&B e case vacanza: lenzuola, asciugamani, set cortesia. Servizio rapido. Sicilia orientale.' },
   { email: 'jolly11@nomadiqe.seed', full_name: 'Claudia Pulizie', username: 'claudiapulizie', jolly_subcategory: 'cleaner', bio: 'Pulizie deep per appartamenti e ville. Servizio pre/post soggiorno. Liguria e Riviera.' },
   { email: 'jolly12@nomadiqe.seed', full_name: 'Filippo Manager', username: 'filippomanager', jolly_subcategory: 'property_manager', bio: 'Property manager per affitti brevi. Gestione centralizzata, pricing, pulizie. Bologna e provincia.' },
-  { email: 'jolly13@nomadiqe.seed', full_name: 'Valeria Assist', username: 'valeriaassist', jolly_subcategory: 'assistenza', bio: 'Assistenza e booking per strutture. Supporto multilingue. Disponibilità estesa.' },
-  { email: 'jolly14@nomadiqe.seed', full_name: 'Lorenzo Transfer', username: 'lorenzotransfer', jolly_subcategory: 'autista', bio: 'Transfer aeroportuali e tour. Minivan 8 posti. Venezia, Treviso, Marco Polo.' },
   { email: 'jolly15@nomadiqe.seed', full_name: 'Elena Fornitrice', username: 'elenafornitrice', jolly_subcategory: 'fornitore', bio: 'Forniture per strutture: cortesia, biancheria, arredamento. Consegna Centro Italia.' },
   // restaurant (3)
   { email: 'jolly16@nomadiqe.seed', full_name: 'Marco Chef', username: 'marcachef', jolly_subcategory: 'restaurant', bio: 'Ristorante e catering per strutture. Menu per ospiti e eventi. Toscana.' },
@@ -95,10 +89,10 @@ const JOLLY = [
   { email: 'jolly28@nomadiqe.seed', full_name: 'Guida Trekking', username: 'guidatrekking', jolly_subcategory: 'excursions', bio: 'Escursioni guidate e trekking per ospiti. Montagna e collina. Nord Italia.' },
   { email: 'jolly29@nomadiqe.seed', full_name: 'Tour Natura', username: 'tournatura', jolly_subcategory: 'excursions', bio: 'Tour ed esperienze nella natura. Wine tour, cicloturismo. Toscana e Chianti.' },
   { email: 'jolly30@nomadiqe.seed', full_name: 'Sicilia Explore', username: 'siciliaexplore', jolly_subcategory: 'excursions', bio: 'Escursioni culturali e naturalistiche. Etna, borghi, mare. Sicilia.' },
-  // boat_excursions (3)
-  { email: 'jolly31@nomadiqe.seed', full_name: 'Nautica Costa', username: 'nauticacosta', jolly_subcategory: 'boat_excursions', bio: 'Gite in barca e tour costieri. Snorkeling, grotte. Amalfi e Positano.' },
-  { email: 'jolly32@nomadiqe.seed', full_name: 'Vela Lago', username: 'velalago', jolly_subcategory: 'boat_excursions', bio: 'Escursioni in barca sul lago. Vela e motoscafo. Garda e Como.' },
-  { email: 'jolly33@nomadiqe.seed', full_name: 'Sail Sardegna', username: 'sailsardegna', jolly_subcategory: 'boat_excursions', bio: 'Crociere e gite in barca. Costa Smeralda e arcipelaghi. Sardegna.' },
+  // Excursions (boat + quad): legacy DB value boat_excursions maps to excursions filter
+  { email: 'jolly31@nomadiqe.seed', full_name: 'Nautica Costa', username: 'nauticacosta', jolly_subcategory: 'excursions', bio: 'Gite in barca e tour costieri. Snorkeling, grotte. Amalfi e Positano.' },
+  { email: 'jolly32@nomadiqe.seed', full_name: 'Vela Lago', username: 'velalago', jolly_subcategory: 'excursions', bio: 'Escursioni in barca sul lago. Vela e motoscafo. Garda e Como.' },
+  { email: 'jolly33@nomadiqe.seed', full_name: 'Sail Sardegna', username: 'sailsardegna', jolly_subcategory: 'excursions', bio: 'Crociere e gite in barca. Costa Smeralda e arcipelaghi. Sardegna.' },
   // home_products (3)
   { email: 'jolly34@nomadiqe.seed', full_name: 'Casa & Design', username: 'casadesign', jolly_subcategory: 'home_products', bio: 'Arredamento e complementi per strutture. Stile moderno e design.' },
   { email: 'jolly35@nomadiqe.seed', full_name: 'Prodotti Casa', username: 'prodoticasa', jolly_subcategory: 'home_products', bio: 'Forniture per case vacanza: biancheria, cucina, bagno. Catalogo ampio.' },

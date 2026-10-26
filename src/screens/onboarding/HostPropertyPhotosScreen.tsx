@@ -64,17 +64,27 @@ export default function HostPropertyPhotosScreen({
           AsyncStorage.getItem(ONBOARDING_AMENITIES_KEY),
         ]);
         const structureType = structureTypeRaw ?? null;
-        const basicInfo = basicInfoRaw ? JSON.parse(basicInfoRaw) : { guests: 2, bedrooms: 1, beds: 1, bathrooms: 1 };
+        const basicInfo = basicInfoRaw
+          ? JSON.parse(basicInfoRaw)
+          : { propertyTitle: '', city: '', country: '', guests: 2, bedrooms: 1, beds: 1, bathrooms: 1 };
         const amenities = amenitiesRaw ? (JSON.parse(amenitiesRaw) as string[]) : [];
 
         const property = await PropertiesService.createProperty(
           user.id,
-          'La mia struttura',
+          (basicInfo?.propertyTitle?.trim?.() as string | undefined) || t('profile.myStructure'),
           structureType
         );
         if (cancelled) return;
 
+        const city = (basicInfo?.city?.trim?.() as string | undefined) || '';
+        const country = ((basicInfo?.country?.trim?.() as string | undefined) || '').toUpperCase();
+        const address = [city, country].filter(Boolean).join(', ') || '';
+
         await PropertiesService.updateProperty(property.id, {
+          title: (basicInfo?.propertyTitle?.trim?.() as string | undefined) || t('profile.myStructure'),
+          address,
+          city,
+          country,
           max_guests: basicInfo.guests ?? 2,
           bedrooms: basicInfo.bedrooms ?? 1,
           beds: basicInfo.beds ?? 1,

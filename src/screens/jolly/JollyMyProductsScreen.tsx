@@ -170,7 +170,9 @@ export default function JollyMyProductsScreen({
       ) : products.length === 0 ? (
         <View style={styles.empty}>
           <Text style={[styles.emptyText, { color: secondary }]}>{t('kolbed.jollyNoProducts')}</Text>
-          <Button title="Aggiungi prodotto" onPress={openAdd} style={styles.addBtn} />
+          <Button onPress={openAdd} style={styles.addBtn}>
+            Aggiungi prodotto
+          </Button>
         </View>
       ) : (
         <FlatList
@@ -188,7 +190,7 @@ export default function JollyMyProductsScreen({
                   <Ionicons name="pencil" size={22} color={theme.colors.primary.blue} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => handleDelete(item)}>
-                  <Ionicons name="trash-outline" size={22} color={theme.colors.primary.red || '#e74c3c'} />
+                  <Ionicons name="trash-outline" size={22} color={theme.colors.system.red || '#e74c3c'} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -234,8 +236,12 @@ export default function JollyMyProductsScreen({
               keyboardType="number-pad"
             />
             <View style={styles.modalButtons}>
-              <Button title={t('common.cancel') || 'Annulla'} onPress={() => setModalVisible(false)} style={styles.modalBtn} />
-              <Button title={t('common.save') || 'Salva'} onPress={handleSave} loading={saving} style={styles.modalBtn} />
+              <Button variant="secondary" onPress={() => setModalVisible(false)} style={styles.modalBtn}>
+                {t('common.cancel') || 'Annulla'}
+              </Button>
+              <Button onPress={handleSave} loading={saving} style={styles.modalBtn}>
+                {t('common.save') || 'Salva'}
+              </Button>
             </View>
           </View>
         </KeyboardAvoidingView>

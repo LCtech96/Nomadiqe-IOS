@@ -10,3 +10,4 @@ export * from './Badge';
 export * from './Separator';
 export * from './LanguagePickerModal';
 export * from './BioText';
+export * from './AiSupport';

@@ -34,7 +34,11 @@ import {
   type StructureTypeKey,
   type AmenityKey,
 } from '../../constants/propertyOnboarding';
-import type { ProfileScreenProps } from '../../types/navigation';
+import type { HostDashboardScreenProps, ProfileScreenProps } from '../../types/navigation';
+
+type NewPropertyOnboardingScreenProps =
+  | ProfileScreenProps<'NewPropertyOnboarding'>
+  | HostDashboardScreenProps<'NewPropertyOnboarding'>;
 
 const TOTAL_STEPS = 8;
 
@@ -73,13 +77,11 @@ const STRUCTURE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   iurta: 'ellipse',
 };
 
-function NewPropertyOnboardingScreenInner({
-  navigation,
-}: ProfileScreenProps<'NewPropertyOnboarding'>) {
+function NewPropertyOnboardingScreenInner({ navigation }: NewPropertyOnboardingScreenProps) {
   const { user } = useAuth();
   const { isDark } = useTheme();
   const { t } = useI18n();
-  const { state, nextStep, prevStep, setStructureType, setPropertyTitle, setLocation, setBasicInfo, setWeekendSupplementPercent, toggleAmenity, setImages, setCoverIndex, setCollaborationMode, setWhoToHost, setBasePriceWeekday, setKolbedProgram, setPaidCollabBudget, setPropertyId, reset } = usePropertyOnboarding();
+  const { state, nextStep, prevStep, setStructureType, setPropertyTitle, setPropertyDescription, setLocation, setBasicInfo, setWeekendSupplementPercent, toggleAmenity, setImages, setCoverIndex, setCollaborationMode, setWhoToHost, setBasePriceWeekday, setKolbedProgram, setPaidCollabBudget, setPropertyId, reset } = usePropertyOnboarding();
 
   const [loading, setLoading] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -95,7 +97,7 @@ function NewPropertyOnboardingScreenInner({
     if (!state.structureType || !user?.id) return;
     setLoading(true);
     try {
-      const p = await PropertiesService.createProperty(user.id, 'La mia struttura', state.structureType);
+      const p = await PropertiesService.createProperty(user.id, t('profile.myStructure'), state.structureType);
       setPropertyId(p.id);
       nextStep();
     } catch (e: any) {
@@ -164,7 +166,8 @@ function NewPropertyOnboardingScreenInner({
       const address = [state.city, state.country].filter(Boolean).join(', ') || 'Da compilare';
       // Le foto sono in property_media (pending) e saranno visibili dopo approvazione admin
       await PropertiesService.updateProperty(state.propertyId, {
-        title: state.propertyTitle?.trim() || 'La mia struttura',
+        title: state.propertyTitle?.trim() || t('profile.myStructure'),
+        description: state.propertyDescription?.trim() || '',
         address,
         city: state.city?.trim() || 'Da compilare',
         country: state.country?.trim() || 'IT',
@@ -181,10 +184,11 @@ function NewPropertyOnboardingScreenInner({
         kolbed_program: state.kolbedProgram,
         paid_collab_min_budget: state.kolbedProgram === 'paid_collab' && paidMin ? parseFloat(paidMin) : null,
         paid_collab_max_budget: state.kolbedProgram === 'paid_collab' && paidMax ? parseFloat(paidMax) : null,
-        status: 'draft',
+        status: 'active',
+        is_active: true,
       });
       reset();
-      navigation.replace('HostStructure', { propertyId: state.propertyId });
+      (navigation as any).replace('HostStructure', { propertyId: state.propertyId });
     } catch (e: any) {
       Alert.alert(t('common.error'), e?.message ?? t('onboarding.saveError'));
     } finally {
@@ -244,6 +248,17 @@ function NewPropertyOnboardingScreenInner({
               value={state.propertyTitle}
               onChangeText={setPropertyTitle}
               maxLength={80}
+            />
+            <Text style={[styles.inputLabel, { color: textColor }]}>{t('propertyOnboarding.step2Description')}</Text>
+            <TextInput
+              style={[styles.textInput, styles.textArea, { backgroundColor: cardBg, color: textColor }]}
+              placeholder={t('propertyOnboarding.step2DescriptionPlaceholder')}
+              placeholderTextColor={secondary}
+              value={state.propertyDescription}
+              onChangeText={setPropertyDescription}
+              multiline
+              textAlignVertical="top"
+              maxLength={1000}
             />
             <Text style={[styles.inputLabel, { color: textColor }]}>{t('propertyOnboarding.step2City')}</Text>
             <TextInput
@@ -432,9 +447,9 @@ function NewPropertyOnboardingScreenInner({
               <Text style={[styles.programTitle, { color: textColor }]}>{t('propertyOnboarding.programKolbed100Title')}</Text>
               <Text style={[styles.programDesc, { color: secondary }]}>{t('propertyOnboarding.programKolbed100Desc')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.programCard, { backgroundColor: state.kolbedProgram === 'gigo_50' ? cardBg : 'transparent', borderWidth: 2, borderColor: state.kolbedProgram === 'gigo_50' ? theme.colors.primary.blue : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)') }]} onPress={() => setKolbedProgram('gigo_50')}>
-              <Text style={[styles.programTitle, { color: textColor }]}>{t('propertyOnboarding.programGigo50Title')}</Text>
-              <Text style={[styles.programDesc, { color: secondary }]}>{t('propertyOnboarding.programGigo50Desc')}</Text>
+            <TouchableOpacity style={[styles.programCard, { backgroundColor: state.kolbedProgram === 'kolbed_50' ? cardBg : 'transparent', borderWidth: 2, borderColor: state.kolbedProgram === 'kolbed_50' ? theme.colors.primary.blue : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)') }]} onPress={() => setKolbedProgram('kolbed_50')}>
+              <Text style={[styles.programTitle, { color: textColor }]}>{t('propertyOnboarding.programKolbed50Title')}</Text>
+              <Text style={[styles.programDesc, { color: secondary }]}>{t('propertyOnboarding.programKolbed50Desc')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.programCard, { backgroundColor: state.kolbedProgram === 'paid_collab' ? cardBg : 'transparent', borderWidth: 2, borderColor: state.kolbedProgram === 'paid_collab' ? theme.colors.primary.blue : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)') }]} onPress={() => setKolbedProgram('paid_collab')}>
               <Text style={[styles.programTitle, { color: textColor }]}>{t('propertyOnboarding.programPaidTitle')}</Text>
@@ -588,6 +603,7 @@ const styles = StyleSheet.create({
   stepperValue: { ...theme.typography.title2, fontWeight: '700', minWidth: 32, textAlign: 'center' },
   inputLabel: { ...theme.typography.body, fontWeight: '600', marginTop: theme.spacing.md, marginBottom: 4 },
   textInput: { borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, ...theme.typography.body, marginBottom: theme.spacing.sm },
+  textArea: { minHeight: 100, paddingTop: 12 },
   sectionLabel: { ...theme.typography.headline, fontWeight: '600', marginTop: theme.spacing.xl, marginBottom: theme.spacing.sm },
   weekendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
   weekendChip: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10 },
@@ -638,7 +654,7 @@ const styles = StyleSheet.create({
   nextBtn: {},
 });
 
-export default function NewPropertyOnboardingScreen(props: ProfileScreenProps<'NewPropertyOnboarding'>) {
+export default function NewPropertyOnboardingScreen(props: NewPropertyOnboardingScreenProps) {
   return (
     <PropertyOnboardingProvider>
       <NewPropertyOnboardingScreenInner {...props} />

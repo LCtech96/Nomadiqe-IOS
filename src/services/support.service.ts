@@ -317,4 +317,68 @@ export class SupportService {
     const { data: urlData } = supabase.storage.from(BUCKET_SUPPORT).getPublicUrl(data.path);
     return urlData?.publicUrl ?? '';
   }
+
+  /**
+   * Ottiene o crea il ticket per l'assistenza AI / Supporto chat
+   */
+  static async getOrCreateAiSupportTicket(
+    userId: string,
+    device?: string
+  ): Promise<SupportTicket> {
+    const { data: existing, error: findError } = await supabase
+      .from('support_tickets')
+      .select('*')
+      .eq('user_id', userId)
+      .in('status', ['open', 'replied'])
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (!findError && existing && existing.length > 0) {
+      return existing[0] as SupportTicket;
+    }
+
+    const { data: created, error: createError } = await supabase
+      .from('support_tickets')
+      .insert({
+        user_id: userId,
+        device: device || null,
+        request_type: 'AI Assistant',
+        status: 'open',
+      })
+      .select()
+      .single();
+
+    if (createError) throw createError;
+
+    const adminIds = await ProfilesService.getProfileIdsByEmails(ADMIN_EMAILS);
+    const title = 'Nuova sessione assistenza utente';
+    const message = `Dispositivo: ${device || '-'} | Iniziata conversazione`;
+    await Promise.all(
+      adminIds.map((adminId) =>
+        NotificationsService.create(
+          adminId,
+          'support_new',
+          title,
+          message,
+          created.id
+        )
+      )
+    ).catch(() => {});
+
+    return created as SupportTicket;
+  }
+
+  /**
+   * Ottiene i messaggi di un ticket
+   */
+  static async getTicketMessages(ticketId: string): Promise<SupportTicketMessage[]> {
+    const { data, error } = await supabase
+      .from('support_ticket_messages')
+      .select('*')
+      .eq('support_ticket_id', ticketId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return (data || []) as SupportTicketMessage[];
+  }
 }

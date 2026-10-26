@@ -5,6 +5,7 @@
 
 import { supabase } from './supabase';
 import { containsLink } from '../utils/bio';
+import { prepareJpegUploadBody } from '../utils/imageUpload';
 import type { UserProfile } from '../types';
 import type { UserRole } from '../types/user';
 
@@ -20,6 +21,12 @@ export class ProfilesService {
     fullName?: string | null,
     username?: string | null
   ): Promise<UserProfile> {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError) throw authError;
+    if (!authData.user || authData.user.id !== userId) {
+      throw new Error('Session invalid. Please sign in again.');
+    }
+
     const { data: existing } = await supabase
       .from('profiles')
       .select('*')
@@ -28,18 +35,48 @@ export class ProfilesService {
 
     if (existing) return existing as UserProfile;
 
+    const resolvedEmail = email || authData.user.email || '';
+    const resolvedName =
+      fullName ?? (authData.user.user_metadata?.full_name as string | undefined) ?? null;
+    const resolvedUsername =
+      username ?? (authData.user.user_metadata?.username as string | undefined) ?? null;
+
     const { data: created, error } = await supabase
       .from('profiles')
       .insert({
         id: userId,
-        email,
-        full_name: fullName ?? null,
-        username: username ?? null,
+        email: resolvedEmail,
+        full_name: resolvedName,
+        username: resolvedUsername,
       })
       .select()
-      .single();
+      .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      // Stale session: auth user no longer exists in users/profiles FK chain.
+      if (error.code === '23503') {
+        throw new Error('Session invalid. Please sign in again.');
+      }
+      // Profile may have been created by DB trigger between select and insert.
+      if (error.code === '23505') {
+        const { data: raced } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+        if (raced) return raced as UserProfile;
+      }
+      throw error;
+    }
+    if (!created) {
+      const { data: raced } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+      if (raced) return raced as UserProfile;
+      throw new Error('Could not create profile.');
+    }
     return created as UserProfile;
   }
 
@@ -200,6 +237,57 @@ export class ProfilesService {
   }
 
   /**
+   * Check if username is available (case-insensitive).
+   */
+  static async isUsernameAvailable(username: string, excludeUserId?: string): Promise<boolean> {
+    const normalized = username.trim().toLowerCase();
+    if (!normalized) return false;
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', normalized)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return true;
+    return excludeUserId != null && data.id === excludeUserId;
+  }
+
+  private static isRemoteImageUri(uri: string): boolean {
+    return uri.startsWith('http://') || uri.startsWith('https://');
+  }
+
+  /**
+   * Upload a single creator aesthetic/gallery image to storage.
+   */
+  static async uploadCreatorCoverImage(userId: string, imageUri: string): Promise<string> {
+    const BUCKET = 'avatars';
+    const path = `${userId}/gallery/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+    const body = await prepareJpegUploadBody(imageUri);
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from(BUCKET)
+      .upload(path, body, { contentType: 'image/jpeg', upsert: false });
+
+    if (uploadError) throw uploadError;
+    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(uploadData.path);
+    return urlData?.publicUrl ?? '';
+  }
+
+  /**
+   * Upload local gallery URIs and return public URLs (remote URIs are kept as-is).
+   */
+  static async uploadCreatorCoverImages(userId: string, imageUris: string[]): Promise<string[]> {
+    const urls = await Promise.all(
+      imageUris.map((uri) =>
+        ProfilesService.isRemoteImageUri(uri)
+          ? uri
+          : ProfilesService.uploadCreatorCoverImage(userId, uri)
+      )
+    );
+    return urls.filter(Boolean);
+  }
+
+  /**
    * Invio richiesta creator: categoria, preferenze strutture, link social. Imposta creator_status = pending e completa onboarding.
    */
   static async submitCreatorApplication(
@@ -208,22 +296,46 @@ export class ProfilesService {
       creator_category: 'micro_influencer' | 'influencer' | 'ugc_creator';
       creator_structure_preferences: string[];
       social_links: Record<string, string | null>;
+      date_of_birth?: string | null;
+      location?: string | null;
+      profile_cover_images?: string[] | null;
     }
   ): Promise<UserProfile> {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError) throw authError;
+    if (!authData.user || authData.user.id !== userId) {
+      throw new Error('Session invalid. Please sign in again.');
+    }
+
+    await ProfilesService.ensureProfile(
+      userId,
+      authData.user.email ?? '',
+      authData.user.user_metadata?.full_name as string | undefined,
+      authData.user.user_metadata?.username as string | undefined
+    );
+
     const { data: updated, error } = await supabase
       .from('profiles')
       .update({
         creator_category: data.creator_category,
         creator_structure_preferences: data.creator_structure_preferences,
         social_links: data.social_links,
+        ...(data.date_of_birth != null ? { date_of_birth: data.date_of_birth } : {}),
+        ...(data.location != null ? { location: data.location } : {}),
+        ...(data.profile_cover_images != null
+          ? { profile_cover_images: data.profile_cover_images }
+          : {}),
         creator_status: 'pending',
         onboarding_completed: true,
       })
       .eq('id', userId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
+    if (!updated) {
+      throw new Error('Profile not found. Please sign out and sign in again.');
+    }
     return updated as UserProfile;
   }
 
@@ -235,6 +347,7 @@ export class ProfilesService {
       .from('profiles')
       .select('*')
       .eq('role', 'creator')
+      .eq('creator_status', 'pending')
       .not('creator_category', 'is', null)
       .order('created_at', { ascending: false });
 
@@ -244,19 +357,50 @@ export class ProfilesService {
 
   /**
    * Admin: approva o rifiuta un creator e imposta le opportunità (tipi strutture che potrà vedere in KOL&BED).
+   * Uses SECURITY DEFINER RPC — direct profile updates are blocked by RLS for non-owners.
    */
   static async setCreatorApproval(
     profileId: string,
     status: 'approved' | 'rejected',
     admin_approved_opportunities: string[] = []
   ): Promise<void> {
-    const { error } = await supabase
+    const { error } = await supabase.rpc('set_creator_approval', {
+      p_profile_id: profileId,
+      p_status: status,
+      p_admin_approved_opportunities:
+        status === 'approved' ? admin_approved_opportunities : [],
+    });
+
+    if (error) throw error;
+  }
+
+  /**
+   * Host applications awaiting admin review.
+   */
+  static async getHostApplicationsForAdmin(): Promise<UserProfile[]> {
+    const { data, error } = await supabase
       .from('profiles')
-      .update({
-        creator_status: status,
-        admin_approved_opportunities: status === 'approved' ? admin_approved_opportunities : [],
-      })
-      .eq('id', profileId);
+      .select('*')
+      .eq('role', 'host')
+      .eq('host_status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data || []) as UserProfile[];
+  }
+
+  /**
+   * Admin: approve or reject a host application.
+   */
+  static async setHostApproval(
+    profileId: string,
+    status: 'approved' | 'rejected'
+  ): Promise<void> {
+    const { error } = await supabase.rpc('set_host_approval', {
+      p_profile_id: profileId,
+      p_status: status,
+      p_activate_properties: status === 'approved',
+    });
 
     if (error) throw error;
   }

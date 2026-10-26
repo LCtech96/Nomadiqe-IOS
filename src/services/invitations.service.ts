@@ -17,7 +17,7 @@ function generateInviteCode(): string {
   return code;
 }
 
-export type InviteRole = 'host' | 'creator';
+export type InviteRole = 'host' | 'creator' | 'jolly';
 
 export interface Invitation {
   id: string;

@@ -4,7 +4,7 @@
 -- Eseguire dopo supabase-jolly-restaurant-and-ratings.sql
 -- =========================================================
 
-COMMENT ON COLUMN public.profiles.jolly_subcategory IS 'cleaner | property_manager | assistenza | autista | fornitore | restaurant | excursions | boat_excursions | home_products';
+COMMENT ON COLUMN public.profiles.jolly_subcategory IS 'cleaner | property_manager | fornitore | restaurant | excursions | home_products';
 
 -- Catalogo prodotti (carta igienica, tovaglie, shampoo, arredamenti, ecc.)
 CREATE TABLE IF NOT EXISTS public.jolly_products (

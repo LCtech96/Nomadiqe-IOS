@@ -3,7 +3,7 @@
  * Lista conversazioni (ultimo messaggio, non letti)
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,10 +15,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { Avatar } from '../../components/ui';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useI18n } from '../../contexts/I18nContext';
 import { theme } from '../../theme';
 import { MessagesService, type ConversationPreview } from '../../services/messages.service';
 import { formatRelativeTime } from '../../utils/formatters';
@@ -29,11 +31,12 @@ export default function MessagesListScreen({
 }: ProfileScreenProps<'MessagesList'>) {
   const { user } = useAuth();
   const { isDark } = useTheme();
+  const { t } = useI18n();
   const [conversations, setConversations] = useState<ConversationPreview[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!user?.id) return;
     try {
       const data = await MessagesService.getConversations(user.id);
@@ -44,11 +47,13 @@ export default function MessagesListScreen({
       setLoading(false);
       setRefreshing(false);
     }
-  };
-
-  useEffect(() => {
-    load();
   }, [user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -58,7 +63,7 @@ export default function MessagesListScreen({
   const openConversation = (c: ConversationPreview) => {
     navigation.navigate('Conversation', {
       recipientId: c.otherUserId,
-      recipientName: c.otherUserName || 'Utente',
+      recipientName: c.otherUserName || t('common.user'),
     });
   };
 
@@ -80,7 +85,7 @@ export default function MessagesListScreen({
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={textColor} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: textColor }]}>Messaggi</Text>
+        <Text style={[styles.headerTitle, { color: textColor }]}>{t('nav.messages')}</Text>
         <TouchableOpacity onPress={() => navigation.navigate('NewConversation')}>
           <Ionicons name="create-outline" size={24} color={textColor} />
         </TouchableOpacity>
@@ -95,7 +100,7 @@ export default function MessagesListScreen({
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="chatbubbles-outline" size={48} color={secondary} />
-            <Text style={[styles.emptyText, { color: secondary }]}>Nessuna conversazione</Text>
+            <Text style={[styles.emptyText, { color: secondary }]}>{t('messages.empty')}</Text>
           </View>
         }
         renderItem={({ item }) => (
@@ -108,7 +113,7 @@ export default function MessagesListScreen({
             <View style={styles.body}>
               <View style={styles.nameRow}>
                 <Text style={[styles.name, { color: textColor }]} numberOfLines={1}>
-                  {item.otherUserName || 'Utente'}
+                  {item.otherUserName || t('common.user')}
                 </Text>
                 {item.lastMessageAt && (
                   <Text style={[styles.time, { color: secondary }]}>

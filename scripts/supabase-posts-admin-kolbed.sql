@@ -1,6 +1,7 @@
 -- =========================================================
 -- NOMADIQE - Post in moderazione + Admin + visibilità KOL&BED
--- Esegui dopo supabase-schema.sql
+-- Esegui dopo supabase-schema.sql e supabase-creator-approval-rpc.sql
+-- (richiede public.is_nomadiqe_admin())
 -- =========================================================
 
 -- 1) I nuovi post nascono "pending" (approvazione admin)
@@ -14,9 +15,7 @@ CREATE POLICY "Approved posts viewable by everyone"
   USING (
     (approval_status = 'approved' AND visibility = 'public')
     OR (auth.uid() = author_id)
-    OR (
-      (SELECT email FROM public.profiles WHERE id = auth.uid()) = 'lucacorrao1996@gmail.com'
-    )
+    OR public.is_nomadiqe_admin()
   );
 
 -- 3) Autori possono aggiornare i propri post
@@ -30,9 +29,7 @@ CREATE POLICY "Users can update own posts"
 DROP POLICY IF EXISTS "Admin can update approval status" ON public.posts;
 CREATE POLICY "Admin can update approval status"
   ON public.posts FOR UPDATE
-  USING (
-    (SELECT email FROM public.profiles WHERE id = auth.uid()) = 'lucacorrao1996@gmail.com'
-  )
+  USING (public.is_nomadiqe_admin())
   WITH CHECK (true);
 
 -- 5) Bucket storage per foto post

@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cardLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
   },

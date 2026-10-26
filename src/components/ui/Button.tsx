@@ -153,6 +153,8 @@ export function Button({
         baseStyle.color = '#FFFFFF';
         break;
       case 'secondary':
+        baseStyle.color = '#000000';
+        break;
       case 'outline':
       case 'ghost':
         baseStyle.color = isDark

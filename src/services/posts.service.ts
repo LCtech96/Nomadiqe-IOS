@@ -228,88 +228,53 @@ export class PostsService {
   }
 
   /**
-   * Get pending comments (admin)
+   * Get pending comments (admin RPC — bypasses RLS)
    */
   static async getPendingComments() {
-    const { data, error } = await supabase
-      .from('post_comments')
-      .select(`
-        *,
-        user:profiles!post_comments_user_id_fkey(
-          id,
-          full_name,
-          username,
-          avatar_url
-        )
-      `)
-      .eq('approval_status', 'pending')
-      .order('created_at', { ascending: false });
-
+    const { data, error } = await supabase.rpc('get_pending_post_comments');
     if (error) throw error;
-    return data as PostComment[];
+    if (!data) return [];
+    const list = Array.isArray(data) ? data : [];
+    return list as PostComment[];
   }
 
   /**
-   * Approva o rifiuta commento (admin)
+   * Approva o rifiuta commento (admin RPC — bypasses RLS)
    */
   static async setCommentApprovalStatus(
     commentId: string,
     status: 'approved' | 'rejected'
   ) {
-    const { data, error } = await supabase
-      .from('post_comments')
-      .update({ approval_status: status })
-      .eq('id', commentId)
-      .select()
-      .single();
-
+    const { error } = await supabase.rpc('set_post_comment_approval', {
+      p_comment_id: commentId,
+      p_status: status,
+    });
     if (error) throw error;
-    if (status === 'approved' && data?.post_id) {
-      await supabase.rpc('increment_post_comments', { post_id: data.post_id });
-    }
-    return data;
   }
 
   /**
-   * Get pending posts (admin)
+   * Get pending posts (admin RPC — bypasses RLS)
    */
   static async getPendingPosts() {
-    const { data, error } = await supabase
-      .from('posts')
-      .select(`
-        *,
-        author:profiles!posts_author_id_fkey(
-          id,
-          full_name,
-          username,
-          avatar_url,
-          role,
-          is_verified
-        )
-      `)
-      .eq('approval_status', 'pending')
-      .order('created_at', { ascending: false });
-
+    const { data, error } = await supabase.rpc('get_pending_posts');
     if (error) throw error;
-    return data as Post[];
+    if (!data) return [];
+    const list = Array.isArray(data) ? data : [];
+    return list as Post[];
   }
 
   /**
-   * Update post approval status (admin)
+   * Update post approval status (admin RPC — bypasses RLS)
    */
   static async setApprovalStatus(
     postId: string,
     status: 'approved' | 'rejected'
   ) {
-    const { data, error } = await supabase
-      .from('posts')
-      .update({ approval_status: status })
-      .eq('id', postId)
-      .select()
-      .single();
-
+    const { error } = await supabase.rpc('set_post_approval', {
+      p_post_id: postId,
+      p_status: status,
+    });
     if (error) throw error;
-    return data;
   }
 
   /**

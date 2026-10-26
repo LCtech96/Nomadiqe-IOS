@@ -16,7 +16,9 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useI18n } from '../../contexts/I18nContext';
 import { theme } from '../../theme';
 import { AuthService } from '../../services/auth.service';
-import { getInviteByCode } from '../../services/invitations.service';
+import { claimInvite, getInviteByCode } from '../../services/invitations.service';
+import { awardPoints } from '../../services/points.service';
+import { inviteRoleToPointAction } from '../../utils/inviteRoles';
 import type { OnboardingScreenProps } from '../../types/navigation';
 import type { UserRole } from '../../types';
 
@@ -33,7 +35,7 @@ const roleOptions: RoleOption[] = [
 
 export default function RoleSelectionScreen({ navigation }: OnboardingScreenProps<'RoleSelection'>) {
   const { user, refreshProfile } = useAuth();
-  const { pendingInviteCode } = useInvite();
+  const { pendingInviteCode, clearPendingInviteCode } = useInvite();
   const { isDark } = useTheme();
   const { t } = useI18n();
   const [selectedRole, setSelectedRole] = useState<UserRole>(null);
@@ -65,18 +67,47 @@ export default function RoleSelectionScreen({ navigation }: OnboardingScreenProp
       await AuthService.updateProfile(user.id, { role: selectedRole });
       await refreshProfile();
 
-      // Navigate: jolly → sottocategoria, poi tutti → ProfileCompletion (passiamo il ruolo per evitare race sul profile)
       switch (selectedRole) {
         case 'host':
+          if (pendingInviteCode) {
+            try {
+              const result = await claimInvite(pendingInviteCode, user.id);
+              if (result) {
+                await awardPoints(result.inviterId, inviteRoleToPointAction(result.role));
+              }
+            } catch (_) {}
+            await clearPendingInviteCode();
+          }
+          navigation.navigate('HostOnboarding');
+          break;
         case 'creator':
-          navigation.navigate('ProfileCompletion', { role: selectedRole });
+          if (pendingInviteCode) {
+            try {
+              const result = await claimInvite(pendingInviteCode, user.id);
+              if (result) {
+                await awardPoints(result.inviterId, inviteRoleToPointAction(result.role));
+              }
+            } catch (_) {}
+            await clearPendingInviteCode();
+          }
+          navigation.navigate('CreatorOnboarding');
           break;
         case 'jolly':
           navigation.navigate('JollySubcategory');
           break;
       }
-    } catch (error: any) {
-      Alert.alert(t('common.error'), error.message || t('onboarding.roleError'));
+    } catch (error: unknown) {
+      const message =
+        error && typeof error === 'object' && 'message' in error
+          ? String((error as { message: string }).message)
+          : t('onboarding.roleError');
+      if (/session invalid|sign in again/i.test(message)) {
+        Alert.alert(t('common.error'), message, [
+          { text: t('common.ok'), onPress: () => AuthService.signOut().catch(() => {}) },
+        ]);
+      } else {
+        Alert.alert(t('common.error'), message || t('onboarding.roleError'));
+      }
     } finally {
       setLoading(false);
     }

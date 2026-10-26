@@ -8,7 +8,7 @@ import { awardPoints } from './points.service';
 import type { UserProfile } from '../types';
 
 export type InitiatedBy = 'host' | 'creator';
-export type CollaborationStatus = 'pending' | 'accepted' | 'rejected';
+export type CollaborationStatus = 'pending' | 'accepted' | 'rejected' | 'completed';
 
 export interface CollaborationRequest {
   id: string;
@@ -30,6 +30,10 @@ export interface CollaborationRequest {
 
 export interface CollaborationRequestWithCreator extends CollaborationRequest {
   creator?: UserProfile | null;
+}
+
+export interface CollaborationRequestWithHost extends CollaborationRequest {
+  host?: UserProfile | null;
 }
 
 export type KolbedPartialType = 'cleaning_only' | '50_discount' | 'full' | 'half_coverage';
@@ -265,6 +269,31 @@ export class CollaborationService {
       .maybeSingle();
     if (error) throw error;
     return !!data;
+  }
+
+  /**
+   * Lista collaborazioni del creator (per Creator Dashboard).
+   */
+  static async getRequestsByCreator(creatorId: string): Promise<CollaborationRequestWithHost[]> {
+    const { data: requests, error } = await supabase
+      .from('host_creator_collaboration_requests')
+      .select('*')
+      .eq('creator_id', creatorId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    const list = (requests || []) as CollaborationRequest[];
+    if (list.length === 0) return [];
+    const hostIds = [...new Set(list.map((r) => r.host_id))];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', hostIds);
+    const profileMap = new Map<string, UserProfile>();
+    (profiles || []).forEach((p) => profileMap.set(p.id, p as UserProfile));
+    return list.map((r) => ({
+      ...r,
+      host: profileMap.get(r.host_id) ?? null,
+    }));
   }
 
   /**

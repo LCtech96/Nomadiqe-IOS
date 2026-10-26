@@ -1,9 +1,9 @@
 /**
  * Admin Screen
- * Solo per lucacorrao1996@gmail.com: approva/rifiuta post e commenti in attesa
+ * Solo per admin (facevoiceai@gmail.com): approva/rifiuta post e commenti in attesa
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,11 +13,12 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
-  Image,
   Modal,
   ScrollView,
   Dimensions,
+  Image as RNImage,
 } from 'react-native';
+import { Image } from 'expo-image';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,7 +31,11 @@ import { theme } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { PostsService } from '../../services/posts.service';
 import { ProfilesService } from '../../services/profiles.service';
-import { PropertiesService, type PropertyMediaRow } from '../../services/properties.service';
+import { PropertiesService, type PropertyMediaRow, type PropertyAdminSummary } from '../../services/properties.service';
+import {
+  JollyLocalServicesService,
+  type JollyServiceMediaAdminRow,
+} from '../../services/jollyLocalServices.service';
 import { SupportService, type SupportTicket } from '../../services/support.service';
 import { formatRelativeTime } from '../../utils/formatters';
 import { STRUCTURE_OPPORTUNITIES } from '../../constants/creator';
@@ -38,7 +43,7 @@ import type { Post, PostComment } from '../../types';
 import type { UserProfile } from '../../types';
 import type { ProfileScreenProps } from '../../types/navigation';
 
-type Tab = 'posts' | 'comments' | 'bio' | 'support' | 'media' | 'creators';
+type Tab = 'posts' | 'comments' | 'bio' | 'support' | 'media' | 'jollyMedia' | 'creators' | 'hosts';
 
 export default function AdminScreen({
   navigation,
@@ -52,12 +57,17 @@ export default function AdminScreen({
   const [bioProfiles, setBioProfiles] = useState<UserProfile[]>([]);
   const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
   const [propertyMedia, setPropertyMedia] = useState<PropertyMediaRow[]>([]);
-  const [propertyTitles, setPropertyTitles] = useState<Record<string, string>>({});
+  const [propertySummaries, setPropertySummaries] = useState<Record<string, PropertyAdminSummary>>({});
+  const [jollyMedia, setJollyMedia] = useState<JollyServiceMediaAdminRow[]>([]);
+  const [jollyMediaPreviewUrls, setJollyMediaPreviewUrls] = useState<Record<string, string>>({});
   const [creatorApplications, setCreatorApplications] = useState<UserProfile[]>([]);
+  const [hostApplications, setHostApplications] = useState<UserProfile[]>([]);
+  const [selectedHost, setSelectedHost] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [mediaViewerPropertyId, setMediaViewerPropertyId] = useState<string | null>(null);
+  const [viewerMediaIndex, setViewerMediaIndex] = useState(0);
   const [selectedCreator, setSelectedCreator] = useState<UserProfile | null>(null);
   const [approveOpportunities, setApproveOpportunities] = useState<string[]>([]);
   const [showOpportunityPicker, setShowOpportunityPicker] = useState(false);
@@ -103,10 +113,39 @@ export default function AdminScreen({
       const media = await PropertiesService.getPendingPropertyMediaForAdmin();
       setPropertyMedia(media);
       const ids = [...new Set(media.map((m) => m.property_id))];
-      const titles = await PropertiesService.getPropertyTitles(ids);
-      setPropertyTitles(titles);
+      if (ids.length === 0) {
+        setPropertySummaries({});
+        return;
+      }
+      try {
+        const summaries = await PropertiesService.getPropertyAdminSummaries(ids);
+        setPropertySummaries(summaries);
+      } catch (summaryError) {
+        console.error(
+          'Property admin summaries failed — run scripts/supabase-property-media-approve-rpc.sql in Supabase:',
+          summaryError
+        );
+        setPropertySummaries({});
+      }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const loadJollyMedia = async () => {
+    try {
+      const media = await JollyLocalServicesService.getPendingJollyServiceMediaForAdmin();
+      console.log("1. Raw Media Rows from DB:", media);
+
+      const previews = await JollyLocalServicesService.resolveMediaPreviewUrls(media);
+      console.log("2. Resolved Previews:", previews);
+
+      setJollyMedia(media);
+      setJollyMediaPreviewUrls(previews);
+    } catch (e) {
+      console.error(e);
+      setJollyMedia([]);
+      setJollyMediaPreviewUrls({});
     }
   };
 
@@ -119,9 +158,27 @@ export default function AdminScreen({
     }
   };
 
+  const loadHosts = async () => {
+    try {
+      const data = await ProfilesService.getHostApplicationsForAdmin();
+      setHostApplications(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const load = async () => {
     setLoading(true);
-    await Promise.all([loadPosts(), loadComments(), loadBio(), loadSupport(), loadPropertyMedia(), loadCreators()]);
+    await Promise.all([
+      loadPosts(),
+      loadComments(),
+      loadBio(),
+      loadSupport(),
+      loadPropertyMedia(),
+      loadJollyMedia(),
+      loadCreators(),
+      loadHosts(),
+    ]);
     setLoading(false);
     setRefreshing(false);
   };
@@ -195,17 +252,15 @@ export default function AdminScreen({
     }
   };
 
-  const handleApprovePropertyMedia = async (mediaId: string) => {
+  const handleApprovePropertyMediaGroup = async (propertyId: string) => {
     if (!user?.id) return;
-    setUpdatingId(mediaId);
+    const mediaIds = propertyMedia.filter((m) => m.property_id === propertyId).map((m) => m.id);
+    if (mediaIds.length === 0) return;
+    setUpdatingId(propertyId);
     try {
-      await PropertiesService.approvePropertyMedia(mediaId, user.id);
-      setPropertyMedia((prev) => {
-        const next = prev.filter((m) => m.id !== mediaId);
-        const openId = mediaViewerPropertyId;
-        if (openId && !next.some((m) => m.property_id === openId)) setMediaViewerPropertyId(null);
-        return next;
-      });
+      await PropertiesService.approveAllPendingPropertyMedia(mediaIds, user.id);
+      setPropertyMedia((prev) => prev.filter((m) => m.property_id !== propertyId));
+      setMediaViewerPropertyId(null);
     } catch (e) {
       Alert.alert(t('common.error'), t('admin.errorApproveMedia'));
     } finally {
@@ -213,22 +268,50 @@ export default function AdminScreen({
     }
   };
 
-  const handleRejectPropertyMedia = async (mediaId: string) => {
+  const handleRejectPropertyMediaGroup = async (propertyId: string) => {
     if (!user?.id) return;
-    setUpdatingId(mediaId);
+    const mediaIds = propertyMedia.filter((m) => m.property_id === propertyId).map((m) => m.id);
+    if (mediaIds.length === 0) return;
+    setUpdatingId(propertyId);
     try {
-      await PropertiesService.rejectPropertyMedia(mediaId, user.id);
-      setPropertyMedia((prev) => {
-        const next = prev.filter((m) => m.id !== mediaId);
-        const openId = mediaViewerPropertyId;
-        if (openId && !next.some((m) => m.property_id === openId)) setMediaViewerPropertyId(null);
-        return next;
-      });
+      await PropertiesService.rejectAllPendingPropertyMedia(mediaIds, user.id);
+      setPropertyMedia((prev) => prev.filter((m) => m.property_id !== propertyId));
+      setMediaViewerPropertyId(null);
     } catch (e) {
       Alert.alert(t('common.error'), t('admin.errorRejectMedia'));
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const handleApproveJollyMedia = async (mediaId: string) => {
+    setUpdatingId(mediaId);
+    try {
+      await JollyLocalServicesService.approveJollyServiceMedia(mediaId);
+      setJollyMedia((prev) => prev.filter((m) => m.id !== mediaId));
+    } catch (e) {
+      Alert.alert(t('common.error'), t('admin.errorApproveJollyMedia'));
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleRejectJollyMedia = async (mediaId: string) => {
+    setUpdatingId(mediaId);
+    try {
+      await JollyLocalServicesService.rejectJollyServiceMedia(mediaId);
+      setJollyMedia((prev) => prev.filter((m) => m.id !== mediaId));
+    } catch (e) {
+      Alert.alert(t('common.error'), t('admin.errorRejectJollyMedia'));
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const jollyMediaKindLabel = (kind: string) => {
+    const key = `admin.jollyMediaKinds.${kind}` as const;
+    const label = t(key);
+    return label === key ? kind : label;
   };
 
   const openCreatorDetail = (creator: UserProfile) => {
@@ -305,10 +388,80 @@ export default function AdminScreen({
     return opt ? t(opt.labelKey as keyof typeof t) : value;
   };
 
+  const openHostDetail = (host: UserProfile) => setSelectedHost(host);
+
+  const handleApproveHost = async () => {
+    if (!selectedHost) return;
+    setUpdatingId(selectedHost.id);
+    try {
+      await ProfilesService.setHostApproval(selectedHost.id, 'approved');
+      setHostApplications((prev) => prev.filter((p) => p.id !== selectedHost.id));
+      setSelectedHost(null);
+    } catch (e) {
+      Alert.alert(t('common.error'), e instanceof Error ? e.message : 'Error');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleRejectHost = async () => {
+    if (!selectedHost) return;
+    Alert.alert(t('admin.hostReject'), undefined, [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('admin.reject'),
+        style: 'destructive',
+        onPress: async () => {
+          setUpdatingId(selectedHost.id);
+          try {
+            await ProfilesService.setHostApproval(selectedHost.id, 'rejected');
+            setHostApplications((prev) => prev.filter((p) => p.id !== selectedHost.id));
+            setSelectedHost(null);
+          } catch (e) {
+            Alert.alert(t('common.error'), e instanceof Error ? e.message : 'Error');
+          } finally {
+            setUpdatingId(null);
+          }
+        },
+      },
+    ]);
+  };
+
+  const getCreatorGalleryUrls = (creator: UserProfile): string[] =>
+    (creator.profile_cover_images ?? []).filter(
+      (url): url is string =>
+        Boolean(url?.trim()) && (url.startsWith('http://') || url.startsWith('https://'))
+    );
+
+  const selectedCreatorGalleryUrls = selectedCreator
+    ? getCreatorGalleryUrls(selectedCreator)
+    : [];
+
+  const propertyMediaGroups = useMemo(() => {
+    const byProperty = new Map<string, PropertyMediaRow[]>();
+    for (const item of propertyMedia) {
+      const list = byProperty.get(item.property_id) ?? [];
+      list.push(item);
+      byProperty.set(item.property_id, list);
+    }
+    return Array.from(byProperty.entries()).map(([propertyId, media]) => ({
+      propertyId,
+      media,
+      thumbnail: media.find((m) => m.type === 'image') ?? media[0],
+    }));
+  }, [propertyMedia]);
+
+  const openPropertyMediaViewer = (propertyId: string) => {
+    setViewerMediaIndex(0);
+    setMediaViewerPropertyId(propertyId);
+  };
+
   const mediaForViewer = mediaViewerPropertyId
     ? propertyMedia.filter((m) => m.property_id === mediaViewerPropertyId)
     : [];
-  const viewerTitle = mediaViewerPropertyId ? (propertyTitles[mediaViewerPropertyId] ?? mediaViewerPropertyId.slice(0, 8)) : '';
+  const viewerSummary = mediaViewerPropertyId ? propertySummaries[mediaViewerPropertyId] : undefined;
+  const viewerTitle = viewerSummary?.title ?? mediaViewerPropertyId?.slice(0, 8) ?? '';
+  const viewerHostName = viewerSummary?.hostName ?? '';
 
   const bg = isDark ? theme.colors.dark.background : theme.colors.light.background;
   const textColor = isDark ? theme.colors.dark.label : theme.colors.light.label;
@@ -332,8 +485,13 @@ export default function AdminScreen({
         <View style={styles.headerRight} />
       </View>
 
-      {/* Tab Post | Commenti */}
-      <View style={[styles.tabs, { borderBottomColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)' }]}>
+      {/* Tabs */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={[styles.tabsScroll, { borderBottomColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)' }]}
+        contentContainerStyle={styles.tabs}
+      >
         <TouchableOpacity
           style={[styles.tab, tab === 'posts' && styles.tabActive]}
           onPress={() => setTab('posts')}
@@ -393,9 +551,35 @@ export default function AdminScreen({
           <Text style={[styles.tabText, { color: tab === 'media' ? theme.colors.primary.blue : secondary }]}>
             {t('admin.media')}
           </Text>
-          {propertyMedia.length > 0 && (
+          {propertyMediaGroups.length > 0 && (
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>{propertyMedia.length}</Text>
+              <Text style={styles.badgeText}>{propertyMediaGroups.length}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, tab === 'jollyMedia' && styles.tabActive]}
+          onPress={() => setTab('jollyMedia')}
+        >
+          <Text style={[styles.tabText, { color: tab === 'jollyMedia' ? theme.colors.primary.blue : secondary }]}>
+            {t('admin.jollyMedia')}
+          </Text>
+          {jollyMedia.length > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{jollyMedia.length}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, tab === 'hosts' && styles.tabActive]}
+          onPress={() => setTab('hosts')}
+        >
+          <Text style={[styles.tabText, { color: tab === 'hosts' ? theme.colors.primary.blue : secondary }]}>
+            {t('admin.hosts')}
+          </Text>
+          {hostApplications.length > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{hostApplications.length}</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -412,7 +596,7 @@ export default function AdminScreen({
             </View>
           )}
         </TouchableOpacity>
-      </View>
+      </ScrollView>
 
       {tab === 'posts' && (
         <FlatList
@@ -646,8 +830,8 @@ export default function AdminScreen({
 
       {tab === 'media' && (
         <FlatList
-          data={propertyMedia}
-          keyExtractor={(item) => item.id}
+          data={propertyMediaGroups}
+          keyExtractor={(item) => item.propertyId}
           contentContainerStyle={styles.list}
           refreshControl={
             <RefreshControl
@@ -663,34 +847,87 @@ export default function AdminScreen({
               </Text>
             </View>
           }
+          renderItem={({ item }) => {
+            const summary = propertySummaries[item.propertyId];
+            const title = summary?.title ?? item.propertyId.slice(0, 8);
+            const hostName = summary?.hostName ?? t('common.user');
+            const thumb = item.thumbnail;
+            return (
+              <TouchableOpacity activeOpacity={0.7} onPress={() => openPropertyMediaViewer(item.propertyId)}>
+                <Card style={styles.card}>
+                  <View style={styles.mediaCardRow}>
+                    <View style={styles.mediaCardMeta}>
+                      <Text style={[styles.authorName, { color: textColor }]} numberOfLines={2}>
+                        {title}
+                      </Text>
+                      <Text style={[styles.time, { color: secondary }]} numberOfLines={1}>
+                        {hostName}
+                      </Text>
+                      <Text style={[styles.time, { color: secondary }]}>
+                        {t('admin.mediaItemCount', { count: item.media.length })}
+                      </Text>
+                    </View>
+                    {thumb?.type === 'image' ? (
+                      <Image source={{ uri: thumb.url }} style={styles.mediaCardThumb} contentFit="cover" />
+                    ) : (
+                      <View style={[styles.mediaCardThumb, styles.mediaCardThumbVideo]}>
+                        <Ionicons name="videocam" size={24} color={secondary} />
+                      </View>
+                    )}
+                  </View>
+                </Card>
+              </TouchableOpacity>
+            );
+          }}
+        />
+      )}
+
+      {tab === 'jollyMedia' && (
+        <FlatList
+          data={jollyMedia}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl
+              refreshing={Boolean(refreshing)}
+              onRefresh={onRefresh}
+              tintColor={theme.colors.primary.blue}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={[styles.emptyText, { color: secondary }]}>{t('admin.emptyJollyMedia')}</Text>
+            </View>
+          }
           renderItem={({ item }) => (
             <Card style={styles.card}>
               <Text style={[styles.authorName, { color: textColor }]}>
-                {propertyTitles[item.property_id] ?? item.property_id.slice(0, 8)} · {item.type === 'image' ? 'Foto' : 'Video'}
+                {item.jolly_full_name || item.jolly_email || item.jolly_id.slice(0, 8)}
               </Text>
               <Text style={[styles.time, { color: secondary }]}>
-                {formatRelativeTime(item.uploaded_at)}
+                {t('admin.jollyMediaService')}: {item.service_title || item.service_id.slice(0, 8)} ·{' '}
+                {t('admin.jollyMediaKind')}: {jollyMediaKindLabel(item.media_kind)}
               </Text>
-              <TouchableOpacity
-                activeOpacity={0.9}
-                onPress={() => setMediaViewerPropertyId(item.property_id)}
-              >
-                {item.type === 'image' ? (
-                  <Image source={{ uri: item.url }} style={styles.media} resizeMode="cover" />
-                ) : (
-                  <View style={[styles.media, styles.mediaVideoPlaceholder]}>
-                    <Ionicons name="videocam" size={48} color={secondary} />
-                    <Text style={[styles.time, { color: secondary }]}>Video</Text>
-                  </View>
-                )}
-                <Text style={[styles.viewAllHint, { color: theme.colors.primary.blue }]}>
-                  Tocca per aprire e visionare tutte le immagini della struttura
-                </Text>
-              </TouchableOpacity>
+              <Text style={[styles.time, { color: secondary }]}>{formatRelativeTime(item.created_at)}</Text>
+              {jollyMediaPreviewUrls[item.id] ? (
+                <Image
+                  source={{ uri: jollyMediaPreviewUrls[item.id] }}
+                  style={styles.media}
+                  resizeMode="cover"
+                />
+              ) : item.storage_path || item.public_url ? (
+                <View style={[styles.media, styles.mediaVideoPlaceholder]}>
+                  <ActivityIndicator size="small" color={theme.colors.primary.blue} />
+                </View>
+              ) : (
+                <View style={[styles.media, styles.mediaVideoPlaceholder]}>
+                  <Ionicons name="image-outline" size={48} color={secondary} />
+                </View>
+              )}
               <View style={styles.actions}>
                 <Button
                   size="sm"
-                  onPress={() => handleApprovePropertyMedia(item.id)}
+                  onPress={() => handleApproveJollyMedia(item.id)}
                   disabled={updatingId === item.id}
                   style={styles.approveBtn}
                 >
@@ -703,7 +940,7 @@ export default function AdminScreen({
                 <Button
                   variant="outline"
                   size="sm"
-                  onPress={() => handleRejectPropertyMedia(item.id)}
+                  onPress={() => handleRejectJollyMedia(item.id)}
                   disabled={updatingId === item.id}
                   style={styles.rejectBtn}
                 >
@@ -711,6 +948,46 @@ export default function AdminScreen({
                 </Button>
               </View>
             </Card>
+          )}
+        />
+      )}
+
+      {tab === 'hosts' && (
+        <FlatList
+          data={hostApplications}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl
+              refreshing={Boolean(refreshing)}
+              onRefresh={onRefresh}
+              tintColor={theme.colors.primary.blue}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={[styles.emptyText, { color: secondary }]}>
+                {t('admin.emptyHosts')}
+              </Text>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <TouchableOpacity activeOpacity={0.7} onPress={() => openHostDetail(item)}>
+              <Card style={styles.card}>
+                <View style={styles.row}>
+                  <Avatar uri={item.avatar_url} size={48} />
+                  <View style={styles.meta}>
+                    <Text style={[styles.authorName, { color: textColor }]}>
+                      {item.full_name || t('common.user')}
+                    </Text>
+                    <Text style={[styles.time, { color: secondary }]}>{item.email}</Text>
+                    <Text style={[styles.time, { color: secondary }]}>
+                      {t('admin.hostTier')}: {item.host_tier ?? '-'} · {t('admin.hostStatus')}: {item.host_status ?? 'pending'}
+                    </Text>
+                  </View>
+                </View>
+              </Card>
+            </TouchableOpacity>
           )}
         />
       )}
@@ -842,6 +1119,22 @@ export default function AdminScreen({
                 </View>
               )}
 
+              {selectedCreatorGalleryUrls.length > 0 && (
+                <View style={styles.creatorGallerySection}>
+                  <Text style={[styles.creatorDetailLabel, { color: secondary }]}>
+                    {t('admin.creatorGallery')}
+                  </Text>
+                  {selectedCreatorGalleryUrls.map((uri, index) => (
+                    <RNImage
+                      key={`${uri}-${index}`}
+                      source={{ uri }}
+                      style={styles.creatorGalleryImage}
+                      resizeMode="cover"
+                    />
+                  ))}
+                </View>
+              )}
+
               <View style={styles.creatorActions}>
                 {selectedCreator.creator_status === 'pending' && (
                   <>
@@ -876,6 +1169,64 @@ export default function AdminScreen({
         )}
       </Modal>
 
+      <Modal
+        visible={selectedHost !== null}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setSelectedHost(null)}
+      >
+        {selectedHost && (
+          <View style={[styles.viewerContainer, { backgroundColor: bg }]}>
+            <View style={[styles.viewerHeader, styles.creatorModalHeader, { borderBottomColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}>
+              <Text style={[styles.viewerTitle, { color: textColor, flex: 1 }]} numberOfLines={1}>
+                {selectedHost.full_name || selectedHost.email}
+              </Text>
+              <TouchableOpacity onPress={() => setSelectedHost(null)}>
+                <Ionicons name="close" size={28} color={textColor} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.viewerScroll} contentContainerStyle={styles.creatorDetailContent}>
+              <View style={styles.creatorDetailRow}>
+                <Text style={[styles.creatorDetailLabel, { color: secondary }]}>{t('admin.hostTier')}</Text>
+                <Text style={[styles.creatorDetailValue, { color: textColor }]}>{selectedHost.host_tier ?? '-'}</Text>
+              </View>
+              <View style={styles.creatorDetailRow}>
+                <Text style={[styles.creatorDetailLabel, { color: secondary }]}>{t('admin.hostJustification')}</Text>
+                <Text style={[styles.creatorDetailValue, { color: textColor }]}>
+                  {selectedHost.host_tier_justification ?? '-'}
+                </Text>
+              </View>
+              <View style={styles.creatorDetailRow}>
+                <Text style={[styles.creatorDetailLabel, { color: secondary }]}>{t('admin.hostPaymentModel')}</Text>
+                <Text style={[styles.creatorDetailValue, { color: textColor }]}>
+                  {selectedHost.payment_model ?? (selectedHost.has_own_website ? t('admin.hostOwnWebsite') : '-')}
+                </Text>
+              </View>
+              <View style={styles.creatorDetailRow}>
+                <Text style={[styles.creatorDetailLabel, { color: secondary }]}>{t('admin.creatorSocialLinks')}</Text>
+                <View style={styles.creatorLinks}>
+                  {Object.entries(selectedHost.social_links ?? {}).map(([key, url]) =>
+                    url ? (
+                      <Text key={key} style={[styles.creatorLink, { color: theme.colors.primary.blue }]} numberOfLines={2}>
+                        {key}: {url}
+                      </Text>
+                    ) : null
+                  )}
+                </View>
+              </View>
+              <View style={styles.creatorActions}>
+                <Button size="lg" onPress={handleApproveHost} disabled={updatingId === selectedHost.id} style={styles.approveBtn}>
+                  {updatingId === selectedHost.id ? <ActivityIndicator size="small" color="#fff" /> : t('admin.hostApprove')}
+                </Button>
+                <Button variant="outline" size="lg" onPress={handleRejectHost} disabled={updatingId === selectedHost.id} style={styles.rejectBtn}>
+                  {t('admin.hostReject')}
+                </Button>
+              </View>
+            </ScrollView>
+          </View>
+        )}
+      </Modal>
+
       {/* Modal: galleria immagini in attesa per una struttura */}
       <Modal
         visible={mediaViewerPropertyId !== null}
@@ -888,8 +1239,16 @@ export default function AdminScreen({
             <Text style={[styles.viewerTitle, { color: textColor }]} numberOfLines={1}>
               {viewerTitle}
             </Text>
+            {viewerHostName ? (
+              <Text style={[styles.viewerSubtitle, { color: secondary }]} numberOfLines={1}>
+                {viewerHostName}
+              </Text>
+            ) : null}
             <Text style={[styles.viewerSubtitle, { color: secondary }]}>
-              {mediaForViewer.length} in attesa · scorri per visionare tutte
+              {t('admin.mediaPendingSwipe', { count: mediaForViewer.length })}
+              {mediaForViewer.length > 1
+                ? ` · ${viewerMediaIndex + 1}/${mediaForViewer.length}`
+                : ''}
             </Text>
             <TouchableOpacity
               style={styles.viewerCloseBtn}
@@ -898,15 +1257,21 @@ export default function AdminScreen({
               <Ionicons name="close" size={28} color={textColor} />
             </TouchableOpacity>
           </View>
-          <ScrollView
-            style={styles.viewerScroll}
-            contentContainerStyle={styles.viewerScrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {mediaForViewer.map((m) => (
-              <View key={m.id} style={styles.viewerItem}>
+          <FlatList
+            data={mediaForViewer}
+            keyExtractor={(m) => m.id}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            style={styles.viewerCarousel}
+            onMomentumScrollEnd={(e) => {
+              const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+              setViewerMediaIndex(index);
+            }}
+            renderItem={({ item: m }) => (
+              <View style={styles.viewerSlide}>
                 {m.type === 'image' ? (
-                  <Image source={{ uri: m.url }} style={styles.viewerImage} resizeMode="contain" />
+                  <Image source={{ uri: m.url }} style={styles.viewerImage} contentFit="contain" />
                 ) : (
                   <View style={[styles.viewerImage, styles.viewerVideoPlaceholder]}>
                     <Ionicons name="videocam" size={64} color={secondary} />
@@ -916,32 +1281,36 @@ export default function AdminScreen({
                 <Text style={[styles.viewerItemTime, { color: secondary }]}>
                   {formatRelativeTime(m.uploaded_at)}
                 </Text>
-                <View style={styles.viewerActions}>
-                  <Button
-                    size="sm"
-                    onPress={() => handleApprovePropertyMedia(m.id)}
-                    disabled={updatingId === m.id}
-                    style={styles.approveBtn}
-                  >
-                    {updatingId === m.id ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      t('admin.approve')
-                    )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onPress={() => handleRejectPropertyMedia(m.id)}
-                    disabled={updatingId === m.id}
-                    style={styles.rejectBtn}
-                  >
-                    {t('admin.reject')}
-                  </Button>
-                </View>
               </View>
-            ))}
-          </ScrollView>
+            )}
+          />
+          {mediaViewerPropertyId && (
+            <View style={[styles.viewerFooter, { borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]}>
+              <View style={styles.viewerActions}>
+                <Button
+                  size="lg"
+                  onPress={() => handleApprovePropertyMediaGroup(mediaViewerPropertyId)}
+                  disabled={updatingId === mediaViewerPropertyId}
+                  style={styles.approveBtn}
+                >
+                  {updatingId === mediaViewerPropertyId ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    t('admin.approveAllMedia')
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onPress={() => handleRejectPropertyMediaGroup(mediaViewerPropertyId)}
+                  disabled={updatingId === mediaViewerPropertyId}
+                  style={styles.rejectBtn}
+                >
+                  {t('admin.rejectAllMedia')}
+                </Button>
+              </View>
+            </View>
+          )}
         </View>
       </Modal>
     </SafeAreaView>
@@ -960,10 +1329,14 @@ const styles = StyleSheet.create({
   },
   headerTitle: { ...theme.typography.headline, fontWeight: '700' },
   headerRight: { width: 24 },
+  tabsScroll: {
+    borderBottomWidth: 1,
+    maxHeight: 52,
+  },
   tabs: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
     paddingHorizontal: theme.spacing.screenPadding,
+    alignItems: 'center',
   },
   tab: {
     paddingVertical: theme.spacing.md,
@@ -990,9 +1363,22 @@ const styles = StyleSheet.create({
   authorName: { ...theme.typography.headline, fontWeight: '600' },
   time: { ...theme.typography.caption1, marginTop: 2 },
   content: { ...theme.typography.body, marginBottom: theme.spacing.md },
-  media: { width: '100%', height: 200, borderRadius: theme.borderRadius.md, marginBottom: theme.spacing.xs },
+  media: { width: '100%', height: 200, borderRadius: theme.borderRadius.md, marginBottom: theme.spacing.xs,},
   mediaVideoPlaceholder: { backgroundColor: 'rgba(128,128,128,0.2)', justifyContent: 'center', alignItems: 'center' },
-  viewAllHint: { ...theme.typography.caption1, marginBottom: theme.spacing.md },
+  mediaCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing.md,
+  },
+  mediaCardMeta: { flex: 1 },
+  mediaCardThumb: {
+    width: 72,
+    height: 72,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: 'rgba(128,128,128,0.15)',
+  },
+  mediaCardThumbVideo: { justifyContent: 'center', alignItems: 'center' },
   actions: { flexDirection: 'row', gap: theme.spacing.md },
   approveBtn: { flex: 1 },
   rejectBtn: { flex: 1 },
@@ -1024,8 +1410,27 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     marginBottom: theme.spacing.sm,
   },
+  creatorGallerySection: { marginTop: theme.spacing.lg, marginBottom: theme.spacing.md },
+  creatorGalleryImage: {
+    width: '100%',
+    height: SCREEN_WIDTH * 0.75,
+    borderRadius: theme.borderRadius.md,
+    marginTop: theme.spacing.sm,
+    backgroundColor: 'rgba(128,128,128,0.15)',
+  },
   creatorActions: { gap: theme.spacing.md, marginTop: theme.spacing.xl },
-  viewerItem: { marginBottom: theme.spacing['2xl'] },
+  viewerCarousel: { flex: 1 },
+  viewerSlide: {
+    width: SCREEN_WIDTH,
+    paddingHorizontal: theme.spacing.screenPadding,
+    paddingTop: theme.spacing.md,
+    justifyContent: 'center',
+  },
+  viewerFooter: {
+    paddingHorizontal: theme.spacing.screenPadding,
+    paddingVertical: theme.spacing.lg,
+    borderTopWidth: 1,
+  },
   viewerImage: {
     width: '100%',
     height: SCREEN_WIDTH * 0.85,

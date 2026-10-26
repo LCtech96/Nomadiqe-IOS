@@ -25,6 +25,20 @@ export interface ConversationPreview {
 
 export class MessagesService {
   /**
+   * Totale messaggi non letti per l'utente corrente
+   */
+  static async getUnreadCount(userId: string): Promise<number> {
+    const { count, error } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('recipient_id', userId)
+      .eq('is_read', false);
+
+    if (error) throw error;
+    return count ?? 0;
+  }
+
+  /**
    * Lista conversazioni per l'utente corrente (ultimo messaggio + conteggio non letti)
    */
   static async getConversations(userId: string): Promise<ConversationPreview[]> {

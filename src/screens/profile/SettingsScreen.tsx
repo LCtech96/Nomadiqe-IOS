@@ -1,38 +1,34 @@
 /**
  * Settings Screen
- * Menu impostazioni: tema, Invita host / Invita creator (in base al ruolo)
+ * Menu impostazioni: tema, assistenza
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useI18n } from '../../contexts/I18nContext';
 import { theme } from '../../theme';
-import { createInvite } from '../../services/invitations.service';
 import { SupportService } from '../../services/support.service';
+import { AiSupportWidget } from '../../components/ui/AiSupport';
 import type { ProfileScreenProps } from '../../types/navigation';
-import type { InviteRole } from '../../services/invitations.service';
 
 export default function SettingsScreen({ navigation }: ProfileScreenProps<'Settings'>) {
   const { profile } = useAuth();
   const { isDark, setTheme } = useTheme();
   const { t } = useI18n();
-  const [loadingInvite, setLoadingInvite] = useState<InviteRole | null>(null);
   const [supportUnread, setSupportUnread] = useState(0);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -48,23 +44,6 @@ export default function SettingsScreen({ navigation }: ProfileScreenProps<'Setti
   const secondaryColor = isDark
     ? theme.colors.dark.secondaryLabel
     : theme.colors.light.secondaryLabel;
-
-  const handleInvite = async (role: InviteRole) => {
-    if (!profile?.id) return;
-    try {
-      setLoadingInvite(role);
-      const link = await createInvite(profile.id, role);
-      await Clipboard.setStringAsync(link);
-      Alert.alert(
-        t('settings.linkCopied'),
-        t('settings.linkCopiedMessage')
-      );
-    } catch (e: any) {
-      Alert.alert(t('common.error'), e?.message || t('settings.errorGenerateLink'));
-    } finally {
-      setLoadingInvite(null);
-    }
-  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top']}>
@@ -99,6 +78,29 @@ export default function SettingsScreen({ navigation }: ProfileScreenProps<'Setti
           <Ionicons name="chevron-forward" size={20} color={secondaryColor} />
         </TouchableOpacity>
 
+        {/* AI Assistant Row */}
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => setIsAiModalOpen(true)}
+        >
+          <View style={styles.rowLeft}>
+            <Ionicons
+              name="sparkles"
+              size={24}
+              color={theme.colors.primary.blue}
+            />
+            <View style={styles.rowTextWrap}>
+              <Text style={[styles.rowText, { color: textColor }]}>
+                {t('aiSupport.settingsTitle') || 'Chat with Madi'}
+              </Text>
+              <Text style={[styles.rowSubtext, { color: secondaryColor }]}>
+                {t('aiSupport.settingsSubtitle') || 'Our virtual AI assistant'}
+              </Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={secondaryColor} />
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={styles.row}
           onPress={() => setTheme(isDark ? 'light' : 'dark')}
@@ -113,47 +115,13 @@ export default function SettingsScreen({ navigation }: ProfileScreenProps<'Setti
           </Text>
           <Ionicons name="chevron-forward" size={20} color={secondaryColor} />
         </TouchableOpacity>
-
-        {profile?.role === 'host' && (
-          <TouchableOpacity
-            style={styles.row}
-            onPress={() => handleInvite('host')}
-            disabled={loadingInvite !== null}
-          >
-            <Ionicons
-              name="person-add-outline"
-              size={24}
-              color={theme.colors.primary.blue}
-            />
-            <Text style={[styles.rowText, { color: textColor }]}>{t('settings.inviteHost')}</Text>
-            {loadingInvite === 'host' ? (
-              <ActivityIndicator size="small" color={theme.colors.primary.blue} />
-            ) : (
-              <Ionicons name="copy-outline" size={20} color={secondaryColor} />
-            )}
-          </TouchableOpacity>
-        )}
-
-        {profile?.role === 'creator' && (
-          <TouchableOpacity
-            style={styles.row}
-            onPress={() => handleInvite('creator')}
-            disabled={loadingInvite !== null}
-          >
-            <Ionicons
-              name="person-add-outline"
-              size={24}
-              color={theme.colors.primary.blue}
-            />
-            <Text style={[styles.rowText, { color: textColor }]}>{t('settings.inviteCreator')}</Text>
-            {loadingInvite === 'creator' ? (
-              <ActivityIndicator size="small" color={theme.colors.primary.blue} />
-            ) : (
-              <Ionicons name="copy-outline" size={20} color={secondaryColor} />
-            )}
-          </TouchableOpacity>
-        )}
       </ScrollView>
+
+      {/* Floating Action Button & Minimizable Modal */}
+      <AiSupportWidget
+        isOpen={isAiModalOpen}
+        onOpenChange={setIsAiModalOpen}
+      />
     </SafeAreaView>
   );
 }
@@ -178,7 +146,9 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
   },
   rowLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: theme.spacing.md },
+  rowTextWrap: { flex: 1 },
   rowText: { ...theme.typography.body, flex: 1, fontWeight: '500' },
+  rowSubtext: { ...theme.typography.caption1, marginTop: 2 },
   badge: {
     minWidth: 20,
     height: 20,

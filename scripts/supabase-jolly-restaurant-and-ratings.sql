@@ -5,8 +5,8 @@
 -- =========================================================
 
 -- 1) Estendi jolly_subcategory: aggiungi 'restaurant' (ristorante)
--- I valori esistenti restano: cleaner, property_manager, assistenza, autista, fornitore, restaurant
-COMMENT ON COLUMN public.profiles.jolly_subcategory IS 'cleaner | property_manager | assistenza | autista | fornitore | restaurant';
+-- I valori esistenti restano: cleaner, property_manager, fornitore, restaurant
+COMMENT ON COLUMN public.profiles.jolly_subcategory IS 'cleaner | property_manager | fornitore | restaurant';
 
 -- 2) Tabella info ristorante (solo per jolly_subcategory = 'restaurant')
 CREATE TABLE IF NOT EXISTS public.jolly_restaurant_info (

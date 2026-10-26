@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useI18n } from '../../contexts/I18nContext';
 import { theme } from '../../theme';
 import { NotificationsService, type Notification } from '../../services/notifications.service';
 import { formatRelativeTime } from '../../utils/formatters';
@@ -28,6 +29,7 @@ export default function NotificationsScreen({
 }: ProfileScreenProps<'Notifications'>) {
   const { user } = useAuth();
   const { isDark } = useTheme();
+  const { t } = useI18n();
   const [list, setList] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -82,10 +84,10 @@ export default function NotificationsScreen({
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={textColor} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: textColor }]}>Notifiche</Text>
+        <Text style={[styles.headerTitle, { color: textColor }]}>{t('profile.notifications')}</Text>
         {list.some((n) => !n.read) ? (
           <TouchableOpacity onPress={handleMarkAllRead}>
-            <Text style={[styles.markAll, { color: theme.colors.primary.blue }]}>Segna tutte lette</Text>
+            <Text style={[styles.markAll, { color: theme.colors.primary.blue }]}>{t('notifications.markAllRead')}</Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.headerRight} />
@@ -101,7 +103,7 @@ export default function NotificationsScreen({
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="notifications-off-outline" size={48} color={secondary} />
-            <Text style={[styles.emptyText, { color: secondary }]}>Nessuna notifica</Text>
+            <Text style={[styles.emptyText, { color: secondary }]}>{t('notifications.empty')}</Text>
           </View>
         }
         renderItem={({ item }) => {

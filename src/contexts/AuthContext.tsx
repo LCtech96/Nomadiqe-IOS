@@ -8,15 +8,26 @@ import { AppState, Linking } from 'react-native';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
 
-/** Messaggi di errore Supabase che richiedono logout locale (token non più valido) */
-const isInvalidRefreshTokenError = (err: unknown): boolean => {
-  const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message: string }).message) : '';
-  return /Invalid Refresh Token|Refresh Token Not Found|refresh_token/i.test(msg);
+function getAuthErrorMessage(err: unknown): string {
+  if (err && typeof err === 'object' && 'message' in err) {
+    return String((err as { message: string }).message);
+  }
+  return '';
+}
+
+/** Session JWT no longer valid (deleted user, expired token, etc.) */
+const isStaleSessionError = (err: unknown): boolean => {
+  const msg = getAuthErrorMessage(err);
+  return (
+    /Invalid Refresh Token|Refresh Token Not Found|refresh_token/i.test(msg) ||
+    /User from sub claim in JWT does not exist/i.test(msg) ||
+    /user not found/i.test(msg) ||
+    /JWT expired/i.test(msg)
+  );
 };
 
-/** Se il refresh token non è più valido, cancella la sessione locale senza mostrare errore */
-async function clearSessionIfInvalidToken(err: unknown): Promise<void> {
-  if (!isInvalidRefreshTokenError(err)) return;
+/** Clear local Supabase session when auth is no longer valid */
+async function clearStaleSession(): Promise<void> {
   try {
     await supabase.auth.signOut();
   } catch (_) {
@@ -25,6 +36,7 @@ async function clearSessionIfInvalidToken(err: unknown): Promise<void> {
 }
 import { AuthService } from '../services/auth.service';
 import { ProfilesService } from '../services/profiles.service';
+import { isCreatorAwaitingApproval } from '../utils/creatorReview';
 import type { UserProfile } from '../types';
 
 /** Estrae access_token e refresh_token dall'URL (hash o query) e imposta la sessione Supabase */
@@ -80,6 +92,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, []);
 
+  // Creators pending admin approval: refresh profile when app returns to foreground
+  useEffect(() => {
+    if (!user?.id || !isCreatorAwaitingApproval(profile)) return;
+
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        loadProfile(user);
+      }
+    });
+    return () => sub.remove();
+  }, [user?.id, profile?.role, profile?.creator_status, profile?.onboarding_completed]);
+
   useEffect(() => {
     let subscription: { unsubscribe: () => void } | null = null;
 
@@ -95,8 +119,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .catch(async (err) => {
-        if (isInvalidRefreshTokenError(err)) {
-          await clearSessionIfInvalidToken(err);
+        if (isStaleSessionError(err)) {
+          await clearStaleSession();
           setSession(null);
           setUser(null);
           setProfile(null);
@@ -144,28 +168,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadProfile = async (user: { id: string; email?: string; user_metadata?: Record<string, unknown> }): Promise<UserProfile | null> => {
     try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      if (!authData.user) {
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        return null;
+      }
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', authData.user.id)
         .maybeSingle();
 
       if (error) throw error;
       if (data) {
-        setProfile(data);
-        setLoading(false);
+        setProfile(data as UserProfile);
         return data as UserProfile;
       }
-      // Profilo assente (es. trigger non applicato): crealo ora che l'utente è autenticato
+
       const created = await ProfilesService.ensureProfile(
-        user.id,
-        user.email ?? '',
-        user.user_metadata?.full_name as string | undefined,
-        user.user_metadata?.username as string | undefined
+        authData.user.id,
+        authData.user.email ?? user.email ?? '',
+        (authData.user.user_metadata?.full_name as string | undefined) ??
+          (user.user_metadata?.full_name as string | undefined),
+        (authData.user.user_metadata?.username as string | undefined) ??
+          (user.user_metadata?.username as string | undefined)
       );
       setProfile(created);
       return created;
-    } catch (error) {
+    } catch (error: unknown) {
+      const code =
+        error && typeof error === 'object' && 'code' in error
+          ? String((error as { code: string }).code)
+          : '';
+      const message =
+        error && typeof error === 'object' && 'message' in error
+          ? String((error as { message: string }).message)
+          : '';
+
+      // Stale session or auth user deleted — clear local session instead of looping errors.
+      if (code === '23503' || /session invalid/i.test(message) || isStaleSessionError(error)) {
+        await clearStaleSession();
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        return null;
+      }
+
       console.error('Error loading profile:', error);
       return null;
     } finally {

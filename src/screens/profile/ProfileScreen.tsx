@@ -1,7 +1,7 @@
 /**
  * Profile Screen
  * Profilo utente corrente – header orizzontale (avatar sinistra + info destra),
- * menu navigazione in grid card 2 colonne con icone, "I miei post" compatto.
+ * top bar con messaggi/notifiche/lingua/tema/impostazioni, menu grid card 2 colonne.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -19,8 +19,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
 
 import { Button, Avatar, Badge, LanguagePickerModal, BioText } from '../../components/ui';
+import { ProfileInviteBanner } from '../../components/profile/ProfileInviteBanner';
+import { InviteToNomadiqeModal } from '../../components/profile/InviteToNomadiqeModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useI18n } from '../../contexts/I18nContext';
@@ -28,6 +31,7 @@ import { theme } from '../../theme';
 import { formatNumberAbbreviated } from '../../utils/formatters';
 import { AuthService } from '../../services/auth.service';
 import { SupportService } from '../../services/support.service';
+import { MessagesService } from '../../services/messages.service';
 import { PropertiesService } from '../../services/properties.service';
 import { PostsService } from '../../services/posts.service';
 import { isAdminEmail } from '../../constants/admin';
@@ -35,6 +39,8 @@ import type { Property } from '../../types/property';
 import type { Post } from '../../types/post';
 import { useFocusEffect } from '@react-navigation/native';
 import type { ProfileScreenProps } from '../../types/navigation';
+import { isInvitableRole } from '../../utils/inviteRoles';
+import { isHostAwaitingApproval } from '../../utils/hostReview';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_GAP = 12;
@@ -90,13 +96,17 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps<'Profil
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [languagePickerVisible, setLanguagePickerVisible] = useState(false);
   const [supportUnread, setSupportUnread] = useState(0);
+  const [messagesUnread, setMessagesUnread] = useState(0);
   const [hostStructures, setHostStructures] = useState<Property[]>([]);
   const [myPosts, setMyPosts] = useState<Post[]>([]);
+  const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [inviteBannerDismissed, setInviteBannerDismissed] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       if (!user?.id) return;
       SupportService.getUnreadSupportCount(user.id).then(setSupportUnread);
+      MessagesService.getUnreadCount(user.id).then(setMessagesUnread);
       if (profile?.role === 'host') {
         PropertiesService.getPropertiesByHost(user.id).then(setHostStructures);
       }
@@ -143,6 +153,18 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps<'Profil
   const isHost = profile.role === 'host';
   const isJolly = profile.role === 'jolly';
   const isAdmin = isAdminEmail(profile.email);
+  const hostUploadDisabled = isHostAwaitingApproval(profile);
+  const showInviteBanner = isInvitableRole(profile.role) && !inviteBannerDismissed;
+
+  const handleCreatePost = () => {
+    if (hostUploadDisabled) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    (navigation.getParent() as { navigate: (name: string) => void } | undefined)?.navigate('CreatePost');
+  };
+
+  const handleDismissInviteBanner = () => {
+    setInviteBannerDismissed(true);
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]} edges={['top']}>
@@ -152,6 +174,17 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps<'Profil
         <View style={styles.topBar}>
           <Text style={[styles.topBarTitle, { color: textColor }]}>{t('nav.profile')}</Text>
           <View style={styles.topBarIcons}>
+            <TouchableOpacity onPress={() => navigation.navigate('MessagesList')} style={styles.topBarBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <Ionicons name="chatbubbles-outline" size={22} color={textColor} />
+              {messagesUnread > 0 && (
+                <View style={styles.topBarBadge}>
+                  <Text style={styles.topBarBadgeText}>{messagesUnread > 99 ? '99+' : messagesUnread}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.topBarBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <Ionicons name="notifications-outline" size={22} color={textColor} />
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => setLanguagePickerVisible(true)} style={styles.topBarBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
               <Ionicons name="language-outline" size={22} color={textColor} />
             </TouchableOpacity>
@@ -161,8 +194,8 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps<'Profil
             <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.topBarBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
               <Ionicons name="settings-outline" size={22} color={textColor} />
               {supportUnread > 0 && (
-                <View style={styles.gearBadge}>
-                  <Text style={styles.gearBadgeText}>{supportUnread > 99 ? '99+' : supportUnread}</Text>
+                <View style={styles.topBarBadge}>
+                  <Text style={styles.topBarBadgeText}>{supportUnread > 99 ? '99+' : supportUnread}</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -170,6 +203,20 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps<'Profil
         </View>
 
         <LanguagePickerModal visible={languagePickerVisible} onClose={() => setLanguagePickerVisible(false)} />
+
+        {showInviteBanner && isInvitableRole(profile.role) && (
+          <ProfileInviteBanner
+            userRole={profile.role}
+            onOpenInvites={() => setInviteModalVisible(true)}
+            onDismiss={handleDismissInviteBanner}
+          />
+        )}
+
+        <InviteToNomadiqeModal
+          visible={inviteModalVisible}
+          onClose={() => setInviteModalVisible(false)}
+          userRole={profile.role}
+        />
 
         {/* ── Profile header: avatar left + info right ── */}
         <View style={[styles.profileCard, { backgroundColor: cardBg }]}>
@@ -243,6 +290,24 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps<'Profil
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: textColor }]}>{t('profile.myPosts')}</Text>
+            {isHost && (
+              <TouchableOpacity
+                onPress={handleCreatePost}
+                disabled={hostUploadDisabled}
+                style={[
+                  styles.uploadPostBtn,
+                  { borderColor: hostUploadDisabled ? secondaryColor : theme.colors.primary.blue },
+                ]}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons
+                  name="add-circle"
+                  size={28}
+                  color={hostUploadDisabled ? secondaryColor : theme.colors.primary.blue}
+                />
+              </TouchableOpacity>
+            )}
           </View>
           {myPosts.length > 0 ? (
             <View style={styles.postsGrid}>
@@ -288,21 +353,7 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps<'Profil
 
         {/* ── Grid cards menu ── */}
         <View style={styles.gridSection}>
-          {/* Row 1: Messaggi + Notifiche */}
-          <View style={styles.gridRow}>
-            <GridCard
-              icon="chatbubbles-outline"
-              label={t('profile.messages')}
-              onPress={() => navigation.navigate('MessagesList')}
-            />
-            <GridCard
-              icon="notifications-outline"
-              label={t('profile.notifications')}
-              onPress={() => navigation.navigate('Notifications')}
-            />
-          </View>
-
-          {/* Row 2: Dashboard + (Admin se applicabile) */}
+          {/* Row 1: Dashboard + (Admin se applicabile) */}
           <View style={styles.gridRow}>
             {profile.role && (
               <GridCard
@@ -361,15 +412,18 @@ export default function ProfileScreen({ navigation }: ProfileScreenProps<'Profil
                   onPress={() => navigation.navigate('HostStructureView', { propertyId: prop.id })}
                   activeOpacity={0.7}
                 >
-                  <Image
-                    source={{ uri: (prop.images ?? [])[0] || undefined }}
-                    style={styles.structureThumb}
-                  />
+                  {(prop.images ?? [])[0] ? (
+                    <Image source={{ uri: (prop.images ?? [])[0] }} style={styles.structureThumb} />
+                  ) : (
+                    <View style={[styles.structureThumb, { justifyContent: 'center', alignItems: 'center' }]}>
+                      <Ionicons name="images-outline" size={20} color={secondaryColor} />
+                    </View>
+                  )}
                   <View style={styles.structureInfo}>
                     <Text style={[styles.structureName, { color: textColor }]} numberOfLines={1}>
                       {prop.title || t('profile.myStructure')}
                     </Text>
-                    {prop.city && (
+                    {prop.city && prop.city !== 'Da compilare' && prop.city !== 'To be filled' && (
                       <Text style={[styles.structureLocation, { color: secondaryColor }]} numberOfLines={1}>
                         {prop.city}{prop.country ? `, ${prop.country}` : ''}
                       </Text>
@@ -424,9 +478,9 @@ const styles = StyleSheet.create({
     ...theme.typography.largeTitle,
     fontWeight: '700',
   },
-  topBarIcons: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
+  topBarIcons: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs },
   topBarBtn: { padding: 4, position: 'relative' },
-  gearBadge: {
+  topBarBadge: {
     position: 'absolute',
     top: 0,
     right: 0,
@@ -438,7 +492,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 3,
   },
-  gearBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  topBarBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
 
   // Profile card
   profileCard: {
@@ -454,7 +508,7 @@ const styles = StyleSheet.create({
   },
   avatarWrap: { position: 'relative' },
   avatarOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 43,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
@@ -500,6 +554,9 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
   },
   sectionTitle: { ...theme.typography.headline, fontWeight: '600' },
+  uploadPostBtn: {
+    padding: 2,
+  },
   postsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
