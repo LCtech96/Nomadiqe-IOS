@@ -14,6 +14,11 @@ import {
   ActivityIndicator,
   TextInput,
   Image,
+  Modal,
+  Pressable,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -41,6 +46,8 @@ type NewPropertyOnboardingScreenProps =
   | HostDashboardScreenProps<'NewPropertyOnboarding'>;
 
 const TOTAL_STEPS = 8;
+/** Minimo caratteri per nome struttura e città (step 2) */
+const MIN_TEXT_CHARS = 2;
 
 // Map structure type to icon name (Ionicons)
 const STRUCTURE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -87,6 +94,10 @@ function NewPropertyOnboardingScreenInner({ navigation }: NewPropertyOnboardingS
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [paidMin, setPaidMin] = useState(state.paidCollabMin?.toString() ?? '');
   const [paidMax, setPaidMax] = useState(state.paidCollabMax?.toString() ?? '');
+  const [showCollabInfo, setShowCollabInfo] = useState(false);
+
+  const titleTooShort = (state.propertyTitle?.trim()?.length ?? 0) < MIN_TEXT_CHARS;
+  const cityTooShort = (state.city?.trim()?.length ?? 0) < MIN_TEXT_CHARS;
 
   const bg = isDark ? theme.colors.dark.background : theme.colors.light.background;
   const textColor = isDark ? theme.colors.dark.label : theme.colors.light.label;
@@ -199,7 +210,7 @@ function NewPropertyOnboardingScreenInner({ navigation }: NewPropertyOnboardingS
   const canProceed = () => {
     switch (state.step) {
       case 1: return !!state.structureType;
-      case 2: return (state.propertyTitle?.trim()?.length ?? 0) >= 2 && (state.city?.trim()?.length ?? 0) >= 2;
+      case 2: return !titleTooShort && !cityTooShort;
       case 5: return !!state.collaborationMode;
       case 6: return !!state.whoToHost;
       case 7: return state.basePriceWeekday > 0;
@@ -240,7 +251,13 @@ function NewPropertyOnboardingScreenInner({ navigation }: NewPropertyOnboardingS
           <View style={styles.stepContent}>
             <Text style={[styles.stepTitle, { color: textColor }]}>{t('propertyOnboarding.step2Title')}</Text>
             <Text style={[styles.stepSubtitle, { color: secondary }]}>{t('propertyOnboarding.step2Subtitle')}</Text>
-            <Text style={[styles.inputLabel, { color: textColor }]}>{t('propertyOnboarding.step2PropertyName')}</Text>
+            <View style={[styles.requiredLegend, { backgroundColor: cardBg }]}>
+              <Ionicons name="information-circle-outline" size={18} color={theme.colors.primary.blue} />
+              <Text style={[styles.requiredLegendText, { color: secondary }]}>
+                {t('propertyOnboarding.step2RequiredLegend', { count: MIN_TEXT_CHARS })}
+              </Text>
+            </View>
+            <Text style={[styles.inputLabel, { color: textColor }]}>{t('propertyOnboarding.step2PropertyName')} *</Text>
             <TextInput
               style={[styles.textInput, { backgroundColor: cardBg, color: textColor }]}
               placeholder={t('propertyOnboarding.step2PropertyNamePlaceholder')}
@@ -249,6 +266,9 @@ function NewPropertyOnboardingScreenInner({ navigation }: NewPropertyOnboardingS
               onChangeText={setPropertyTitle}
               maxLength={80}
             />
+            {titleTooShort && (
+              <Text style={styles.fieldHint}>{t('propertyOnboarding.step2MinChars', { count: MIN_TEXT_CHARS })}</Text>
+            )}
             <Text style={[styles.inputLabel, { color: textColor }]}>{t('propertyOnboarding.step2Description')}</Text>
             <TextInput
               style={[styles.textInput, styles.textArea, { backgroundColor: cardBg, color: textColor }]}
@@ -260,7 +280,7 @@ function NewPropertyOnboardingScreenInner({ navigation }: NewPropertyOnboardingS
               textAlignVertical="top"
               maxLength={1000}
             />
-            <Text style={[styles.inputLabel, { color: textColor }]}>{t('propertyOnboarding.step2City')}</Text>
+            <Text style={[styles.inputLabel, { color: textColor }]}>{t('propertyOnboarding.step2City')} *</Text>
             <TextInput
               style={[styles.textInput, { backgroundColor: cardBg, color: textColor }]}
               placeholder={t('propertyOnboarding.step2CityPlaceholder')}
@@ -268,6 +288,9 @@ function NewPropertyOnboardingScreenInner({ navigation }: NewPropertyOnboardingS
               value={state.city}
               onChangeText={(v) => setLocation(v, state.country)}
             />
+            {cityTooShort && (
+              <Text style={styles.fieldHint}>{t('propertyOnboarding.step2MinChars', { count: MIN_TEXT_CHARS })}</Text>
+            )}
             <Text style={[styles.inputLabel, { color: textColor }]}>{t('propertyOnboarding.step2Country')}</Text>
             <TextInput
               style={[styles.textInput, { backgroundColor: cardBg, color: textColor }]}
@@ -360,7 +383,7 @@ function NewPropertyOnboardingScreenInner({ navigation }: NewPropertyOnboardingS
         return (
           <View style={styles.stepContent}>
             <Text style={[styles.stepTitle, { color: textColor }]}>{t('propertyOnboarding.step5Title')}</Text>
-            <Text style={[styles.stepSubtitle, { color: secondary }]}>{t('propertyOnboarding.step5Subtitle')} <Text style={styles.link}>{t('propertyOnboarding.step5LearnMore')}</Text></Text>
+            <Text style={[styles.stepSubtitle, { color: secondary }]}>{t('propertyOnboarding.step5Subtitle')} <Text style={styles.link} onPress={() => setShowCollabInfo(true)}>{t('propertyOnboarding.step5LearnMore')}</Text></Text>
             <TouchableOpacity style={[styles.optionCard, { backgroundColor: state.collaborationMode === 'approve_first_5' ? cardBg : 'transparent', borderWidth: 2, borderColor: state.collaborationMode === 'approve_first_5' ? theme.colors.primary.blue : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)') }]} onPress={() => setCollaborationMode('approve_first_5')}>
               <View style={styles.optionCardContent}>
                 <Text style={[styles.optionTitle, { color: textColor }]}>{t('propertyOnboarding.step5Option1Title')}</Text>
@@ -440,7 +463,7 @@ function NewPropertyOnboardingScreenInner({ navigation }: NewPropertyOnboardingS
 
       case 8:
         return (
-          <ScrollView style={styles.stepScroll} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.stepScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
             <Text style={[styles.stepTitle, { color: textColor }]}>{t('propertyOnboarding.step8Title')}</Text>
             <Text style={[styles.stepSubtitle, { color: secondary }]}>{t('propertyOnboarding.step8Subtitle')}</Text>
             <TouchableOpacity style={[styles.programCard, { backgroundColor: state.kolbedProgram === 'kolbed_100' ? cardBg : 'transparent', borderWidth: 2, borderColor: state.kolbedProgram === 'kolbed_100' ? theme.colors.primary.blue : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)') }]} onPress={() => setKolbedProgram('kolbed_100')}>
@@ -480,14 +503,22 @@ function NewPropertyOnboardingScreenInner({ navigation }: NewPropertyOnboardingS
         <Text style={[styles.headerTitle, { color: secondary }]}>{state.step} / {TOTAL_STEPS}</Text>
         <View style={styles.headerRight} />
       </View>
+      {/* Tiene il pulsante Avanti sopra la tastiera; tocco fuori dai campi = chiude la tastiera */}
+      <KeyboardAvoidingView style={styles.scroll} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {state.step <= 4 ? (
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
           {renderStep()}
         </ScrollView>
       ) : (
-        <View style={styles.scroll}>
+        <Pressable style={styles.scroll} onPress={Keyboard.dismiss} accessible={false}>
           {renderStep()}
-        </View>
+        </Pressable>
       )}
       <View style={[styles.footer, { borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }]}>
         {state.step < TOTAL_STEPS ? (
@@ -506,6 +537,34 @@ function NewPropertyOnboardingScreenInner({ navigation }: NewPropertyOnboardingS
           </Button>
         )}
       </View>
+      </KeyboardAvoidingView>
+
+      <Modal visible={showCollabInfo} transparent animationType="fade" onRequestClose={() => setShowCollabInfo(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: isDark ? theme.colors.dark.secondaryBackground : theme.colors.light.background }]}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={[styles.modalTitle, { color: textColor }]}>{t('propertyOnboarding.step5InfoTitle')}</Text>
+              {([
+                ['people', 'step5InfoCreatorsTitle', 'step5InfoCreatorsBody'],
+                ['calendar', 'step5InfoApproveTitle', 'step5InfoApproveBody'],
+                ['flash', 'step5InfoInstantTitle', 'step5InfoInstantBody'],
+                ['bulb', 'step5InfoTipTitle', 'step5InfoTipBody'],
+              ] as const).map(([icon, titleKey, bodyKey]) => (
+                <View key={titleKey} style={styles.modalSection}>
+                  <Ionicons name={icon} size={22} color={theme.colors.primary.blue} style={styles.modalSectionIcon} />
+                  <View style={styles.optionCardContent}>
+                    <Text style={[styles.modalSectionTitle, { color: textColor }]}>{t(`propertyOnboarding.${titleKey}`)}</Text>
+                    <Text style={[styles.optionDesc, { color: secondary }]}>{t(`propertyOnboarding.${bodyKey}`)}</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+            <Button onPress={() => setShowCollabInfo(false)} size="lg" style={styles.modalCloseBtn}>
+              {t('propertyOnboarding.step5InfoClose')}
+            </Button>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -604,6 +663,16 @@ const styles = StyleSheet.create({
   inputLabel: { ...theme.typography.body, fontWeight: '600', marginTop: theme.spacing.md, marginBottom: 4 },
   textInput: { borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, ...theme.typography.body, marginBottom: theme.spacing.sm },
   textArea: { minHeight: 100, paddingTop: 12 },
+  requiredLegend: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 12, borderRadius: 10, marginTop: theme.spacing.sm },
+  requiredLegendText: { ...theme.typography.footnote, flex: 1 },
+  fieldHint: { ...theme.typography.footnote, color: theme.colors.warning, marginTop: -4, marginBottom: theme.spacing.sm },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: theme.spacing.screenPadding },
+  modalCard: { maxHeight: '85%', borderRadius: 16, padding: theme.spacing.lg },
+  modalTitle: { ...theme.typography.title2, fontWeight: '700', marginBottom: theme.spacing.md },
+  modalSection: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: theme.spacing.md },
+  modalSectionIcon: { marginRight: 12, marginTop: 2 },
+  modalSectionTitle: { ...theme.typography.headline, fontWeight: '600', marginBottom: 2 },
+  modalCloseBtn: { marginTop: theme.spacing.sm },
   sectionLabel: { ...theme.typography.headline, fontWeight: '600', marginTop: theme.spacing.xl, marginBottom: theme.spacing.sm },
   weekendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
   weekendChip: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10 },
