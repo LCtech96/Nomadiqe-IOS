@@ -37,8 +37,8 @@ const ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
 function generateToken(length = 12): string {
   let result = '';
   const randomValues = new Uint8Array(length);
-  if (typeof global !== 'undefined' && global.crypto?.getRandomValues) {
-    global.crypto.getRandomValues(randomValues);
+  if (typeof globalThis !== 'undefined' && globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(randomValues);
   } else {
     for (let i = 0; i < length; i++) randomValues[i] = Math.floor(Math.random() * 256);
   }

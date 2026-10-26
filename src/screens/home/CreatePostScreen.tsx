@@ -62,7 +62,7 @@ export default function CreatePostScreen({
       Alert.alert(
         t('createPost.hostAdvancedBlocked'),
         t('createPost.hostAdvancedRequired', { points: HOST_ADVANCED_MIN_POINTS }),
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
+        [{ text: t('common.ok'), onPress: () => navigation.goBack() }]
       );
     }
   }, [profile?.role, profile?.points, hostInvitedCount, navigation, t]);
@@ -81,7 +81,7 @@ export default function CreatePostScreen({
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permesso necessario', 'Abilita l\'accesso alla galleria per aggiungere una foto.');
+      Alert.alert(t('common.photoPermissionTitle'), t('createPost.photoPermissionMessage'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -137,7 +137,7 @@ export default function CreatePostScreen({
   const handlePublish = async () => {
     const trimmed = description.trim();
     if (!trimmed) {
-      Alert.alert('Descrizione richiesta', 'Scrivi qualcosa per il post.');
+      Alert.alert(t('createPost.descriptionRequiredTitle'), t('createPost.descriptionRequiredMessage'));
       return;
     }
     if (!user) return;
@@ -166,18 +166,18 @@ export default function CreatePostScreen({
         Alert.alert(
           t('createPost.pendingTitle'),
           role === 'host' ? t('createPost.pendingMessage') : t('createPost.creatorJollyPublicHint'),
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
+          [{ text: t('common.ok'), onPress: () => navigation.goBack() }]
         );
       } else {
         Alert.alert(
           t('createPost.hostSuccessTitle'),
           t('createPost.hostSuccessMessage'),
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
+          [{ text: t('common.ok'), onPress: () => navigation.goBack() }]
         );
       }
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Errore durante la pubblicazione';
-      Alert.alert('Errore', msg);
+      const msg = e instanceof Error ? e.message : t('createPost.publishErrorFallback');
+      Alert.alert(t('common.error'), msg);
     } finally {
       setLoading(false);
     }
@@ -197,10 +197,10 @@ export default function CreatePostScreen({
             activeOpacity={0.7}
           >
             <Text style={[styles.cancelText, { color: theme.colors.primary.blue }]}>
-              Annulla
+              {t('common.cancel')}
             </Text>
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: textColor }]}>Nuovo post</Text>
+          <Text style={[styles.headerTitle, { color: textColor }]}>{t('createPost.screenTitle')}</Text>
           <View style={styles.headerRight} />
         </View>
 
@@ -238,7 +238,7 @@ export default function CreatePostScreen({
         >
           <TextInput
             style={[styles.input, { color: textColor }]}
-            placeholder="Scrivi una descrizione..."
+            placeholder={t('posts.whatsOnYourMind')}
             placeholderTextColor={placeholderColor}
             value={description}
             onChangeText={setDescription}
@@ -263,7 +263,7 @@ export default function CreatePostScreen({
             >
               <Ionicons name="image-outline" size={40} color={placeholderColor} />
               <Text style={[styles.addPhotoText, { color: placeholderColor }]}>
-                Aggiungi foto
+                {t('posts.addPhoto')}
               </Text>
             </TouchableOpacity>
           )}

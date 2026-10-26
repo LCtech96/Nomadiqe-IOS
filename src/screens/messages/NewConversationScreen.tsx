@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '../../components/ui';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useI18n } from '../../contexts/I18nContext';
 import { theme } from '../../theme';
 import { ProfilesService } from '../../services/profiles.service';
 import type { UserProfile } from '../../types';
@@ -28,6 +29,7 @@ export default function NewConversationScreen({
 }: ProfileScreenProps<'NewConversation'>) {
   const { user } = useAuth();
   const { isDark } = useTheme();
+  const { t } = useI18n();
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -49,7 +51,7 @@ export default function NewConversationScreen({
   const openChat = (p: UserProfile) => {
     navigation.replace('Conversation', {
       recipientId: p.id,
-      recipientName: p.full_name || p.username || 'Utente',
+      recipientName: p.full_name || p.username || t('common.user'),
     });
   };
 
@@ -71,7 +73,7 @@ export default function NewConversationScreen({
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={textColor} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: textColor }]}>Nuova conversazione</Text>
+        <Text style={[styles.headerTitle, { color: textColor }]}>{t('messages.newConversation')}</Text>
         <View style={styles.headerRight} />
       </View>
       <FlatList
@@ -80,7 +82,7 @@ export default function NewConversationScreen({
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={[styles.emptyText, { color: secondary }]}>Nessun utente disponibile</Text>
+            <Text style={[styles.emptyText, { color: secondary }]}>{t('messages.noUsersAvailable')}</Text>
           </View>
         }
         renderItem={({ item }) => (
@@ -91,7 +93,7 @@ export default function NewConversationScreen({
           >
             <Avatar uri={item.avatar_url} size={48} />
             <View style={styles.body}>
-              <Text style={[styles.name, { color: textColor }]}>{item.full_name || item.username || 'Utente'}</Text>
+              <Text style={[styles.name, { color: textColor }]}>{item.full_name || item.username || t('common.user')}</Text>
               {item.username && (
                 <Text style={[styles.username, { color: secondary }]}>@{item.username}</Text>
               )}

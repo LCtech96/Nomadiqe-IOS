@@ -5,6 +5,8 @@
 
 export type UserRole = 'host' | 'creator' | 'jolly' | 'manager' | null;
 
+export type SubscriptionTier = 'free' | 'pro' | 'enterprise';
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -14,7 +16,7 @@ export interface UserProfile {
   bio: string | null;
   bio_links_approved?: boolean | null;
   role: UserRole;
-  jolly_subcategory: string | null; // cleaner | property_manager | assistenza | autista | fornitore | restaurant | excursions | boat_excursions | home_products
+  jolly_subcategory: string | null; // cleaner | property_manager | fornitore | restaurant | excursions | home_products (legacy DB may still store boat_excursions — treat as excursions in app)
 
   // Location
   location: string | null;
@@ -44,6 +46,21 @@ export interface UserProfile {
   host_tier?: 'basic' | 'medium' | 'luxury' | null;
   /** L'host accetta collaborazioni a pagamento (cross-tier con compensazione) */
   accepts_paid_collaborations?: boolean | null;
+  host_status?: 'pending' | 'approved' | 'rejected' | null;
+  has_own_website?: boolean | null;
+  payment_model?: 'personal_checkout' | 'nomadiqe_5_percent' | null;
+  host_tier_justification?: string | null;
+  reference_niches?: string[] | null;
+  collab_months?: string[] | null;
+  promotion_platforms?: string[] | null;
+  sponsor_personal_website?: boolean | null;
+  kolbed_plans?: string[] | null;
+  host_onboarding_data?: Record<string, unknown> | null;
+
+  // Noma Hub subscription
+  subscription_tier?: SubscriptionTier | null;
+  /** End of the free trial; while in the future the user gets pro-level access */
+  trial_ends_at?: string | null;
 
   // Status
   onboarding_completed: boolean;

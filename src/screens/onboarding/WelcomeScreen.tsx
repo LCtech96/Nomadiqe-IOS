@@ -37,7 +37,7 @@ export default function WelcomeScreen({ navigation }: OnboardingScreenProps<'Wel
 
           {/* Welcome text */}
           <View style={styles.textContainer}>
-            <Text style={styles.title}>Welcome to Nomadiqe</Text>
+            <Text style={styles.title}> Welcome to Nomadiqe</Text>
             <Text style={styles.subtitle}>
               Connect, collaborate, and discover unique stays worldwide
             </Text>
@@ -49,7 +49,7 @@ export default function WelcomeScreen({ navigation }: OnboardingScreenProps<'Wel
               onPress={() => navigation.navigate('RoleSelection')}
               size="lg"
               variant="secondary"
-              style={styles.button}
+              style={styles.button}       
             >
               Get Started
             </Button>
@@ -100,10 +100,10 @@ const styles = StyleSheet.create({
     ...theme.typography.title3,
     color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
-    paddingHorizontal: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.lg, 
   },
   buttonContainer: {
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.lg
   },
   button: {
     backgroundColor: '#FFFFFF',

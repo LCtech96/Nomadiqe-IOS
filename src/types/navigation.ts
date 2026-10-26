@@ -6,6 +6,7 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { UserRole } from './user';
+import type { PropertyGuideSectionId } from './propertyGuide';
 
 // Auth Stack
 export type AuthStackParamList = {
@@ -40,8 +41,26 @@ export type MainTabParamList = {
   HomeTab: undefined;
   ExploreTab: undefined;
   Create: undefined;
+  HostDashboardTab: NavigatorScreenParams<HostDashboardStackParamList> | undefined;
   KOLBEDTab: undefined;
   ProfileTab: undefined;
+};
+
+// Host dashboard stack (bottom tab for hosts)
+export type HostDashboardStackParamList = {
+  HostDashboard: { section?: 'your_properties' } | undefined;
+  HostEditProperty: { propertyId: string };
+  HostStructureView: { propertyId: string };
+  HostPropertyCalendarSync: { propertyId: string };
+  HostStructure: { propertyId?: string };
+  PropertyGuide: { propertyId: string; token?: string; readOnly?: boolean };
+  PropertyGuideSection: {
+    propertyId: string;
+    sectionId: PropertyGuideSectionId;
+    readOnly?: boolean;
+    token?: string;
+  };
+  NewPropertyOnboarding: undefined;
 };
 
 // Home Stack
@@ -72,9 +91,19 @@ export type ProfileStackParamList = {
   Favorites: undefined;
   Bookings: undefined;
   Dashboard: undefined;
+  /** Jolly: create a new service (UI only for now) */
+  CreateService: undefined;
   HostStructure: { propertyId?: string };
   HostStructureView: { propertyId: string };
   EditStructure: { propertyId: string };
+  /** Host/creator: property guest guide grid */
+  PropertyGuide: { propertyId: string; token?: string; readOnly?: boolean };
+  PropertyGuideSection: {
+    propertyId: string;
+    sectionId: PropertyGuideSectionId;
+    readOnly?: boolean;
+    token?: string;
+  };
   NewPropertyOnboarding: undefined;
   Admin: undefined;
   MessagesList: undefined;
@@ -87,6 +116,10 @@ export type ProfileStackParamList = {
   HostCollaborationRequestDetail: { requestId: string };
   /** Host: link pagamento / anteprima per viaggiatori */
   HostTravelerLink: undefined;
+  /** Host: referral (commission) and personal property share links */
+  HostReferralLinks: undefined;
+  /** Creator: default departure + temporary airport windows (KOL&BED) */
+  CreatorDeparture: undefined;
   ViewUserProfile: { userId: string };
   AffiliateLinkRequests: undefined;
   JollyProductList: { jollyId: string };
@@ -157,6 +190,9 @@ export type HomeScreenProps<T extends keyof HomeStackParamList> =
 
 export type ProfileScreenProps<T extends keyof ProfileStackParamList> = 
   NativeStackScreenProps<ProfileStackParamList, T>;
+
+export type HostDashboardScreenProps<T extends keyof HostDashboardStackParamList> =
+  NativeStackScreenProps<HostDashboardStackParamList, T>;
 
 export type RootStackScreenProps<T extends keyof RootStackParamList> =
   NativeStackScreenProps<RootStackParamList, T>;

@@ -9,13 +9,14 @@ import type { AmenityKey } from '../constants/propertyOnboarding';
 
 export type CollaborationMode = 'approve_first_5' | 'instant';
 export type FirstGuestType = 'any_creator' | 'verified_creator';
-export type KolbedProgram = 'kolbed_100' | 'gigo_50' | 'paid_collab';
+export type KolbedProgram = 'kolbed_100' | 'kolbed_50' | 'paid_collab';
 
 export interface PropertyOnboardingState {
   step: number;
   propertyId: string | null;
   structureType: StructureTypeKey | null;
   propertyTitle: string;
+  propertyDescription: string;
   city: string;
   country: string;
   guests: number;
@@ -39,6 +40,7 @@ const initialState: PropertyOnboardingState = {
   propertyId: null,
   structureType: null,
   propertyTitle: '',
+  propertyDescription: '',
   city: '',
   country: 'IT',
   guests: 2,
@@ -64,6 +66,7 @@ type PropertyOnboardingContextType = {
   prevStep: () => void;
   setStructureType: (type: StructureTypeKey | null) => void;
   setPropertyTitle: (title: string) => void;
+  setPropertyDescription: (description: string) => void;
   setLocation: (city: string, country: string) => void;
   setBasicInfo: (data: { guests?: number; bedrooms?: number; beds?: number; bathrooms?: number }) => void;
   setWeekendSupplementPercent: (percent: number) => void;
@@ -102,6 +105,10 @@ export function PropertyOnboardingProvider({ children }: { children: React.React
 
   const setPropertyTitle = useCallback((propertyTitle: string) => {
     setState((s) => ({ ...s, propertyTitle }));
+  }, []);
+
+  const setPropertyDescription = useCallback((propertyDescription: string) => {
+    setState((s) => ({ ...s, propertyDescription }));
   }, []);
 
   const setLocation = useCallback((city: string, country: string) => {
@@ -175,6 +182,7 @@ export function PropertyOnboardingProvider({ children }: { children: React.React
     prevStep,
     setStructureType,
     setPropertyTitle,
+    setPropertyDescription,
     setLocation,
     setBasicInfo,
     setWeekendSupplementPercent,

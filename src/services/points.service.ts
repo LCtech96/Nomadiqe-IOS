@@ -5,7 +5,14 @@
 
 import { supabase } from './supabase';
 
-export type PointActionType = 'like' | 'comment' | 'create_post' | 'invite_host' | 'invite_creator' | 'host_accept_collaboration';
+export type PointActionType =
+  | 'like'
+  | 'comment'
+  | 'create_post'
+  | 'invite_host'
+  | 'invite_creator'
+  | 'invite_jolly'
+  | 'host_accept_collaboration';
 
 const POINT_CONFIG: Record<PointActionType, { points: number; maxPerDay: number }> = {
   like: { points: 1, maxPerDay: 5 },
@@ -13,6 +20,7 @@ const POINT_CONFIG: Record<PointActionType, { points: number; maxPerDay: number 
   create_post: { points: 15, maxPerDay: 1 },
   invite_host: { points: 500, maxPerDay: 3 },
   invite_creator: { points: 500, maxPerDay: 3 },
+  invite_jolly: { points: 500, maxPerDay: 3 },
   host_accept_collaboration: { points: 50, maxPerDay: 20 },
 };
 

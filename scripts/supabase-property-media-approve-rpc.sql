@@ -107,3 +107,44 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.approve_property_media(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.reject_property_media(uuid) TO authenticated;
+
+-- Titolo struttura e nome host per moderazione (bypass RLS su properties draft/inactive)
+CREATE OR REPLACE FUNCTION public.get_property_admin_summaries(p_property_ids uuid[])
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.is_nomadiqe_admin() THEN
+    RAISE EXCEPTION 'non autorizzato';
+  END IF;
+
+  IF p_property_ids IS NULL OR array_length(p_property_ids, 1) IS NULL THEN
+    RETURN '{}'::jsonb;
+  END IF;
+
+  RETURN COALESCE(
+    (
+      SELECT jsonb_object_agg(
+        p.id::text,
+        jsonb_build_object(
+          'title', coalesce(nullif(trim(p.title), ''), 'Struttura'),
+          'host_id', coalesce(p.host_id, p.owner_id),
+          'host_name', coalesce(
+            nullif(trim(pr.full_name), ''),
+            nullif(trim(pr.email), ''),
+            'Host'
+          )
+        )
+      )
+      FROM public.properties p
+      LEFT JOIN public.profiles pr ON pr.id = coalesce(p.host_id, p.owner_id)
+      WHERE p.id = ANY (p_property_ids)
+    ),
+    '{}'::jsonb
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_property_admin_summaries(uuid[]) TO authenticated;

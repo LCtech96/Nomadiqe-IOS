@@ -175,5 +175,9 @@ const styles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 32,
   },
+  itemLabel: {
+    ...theme.typography.body,
+    fontSize: 16,
+  },
   itemSelected: {},
 });

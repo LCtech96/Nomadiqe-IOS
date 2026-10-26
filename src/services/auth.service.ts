@@ -4,6 +4,8 @@
  */
 
 import { supabase } from './supabase';
+import { ProfilesService } from './profiles.service';
+import { prepareJpegUploadBody } from '../utils/imageUpload';
 import type { UserProfile } from '../types';
 
 export interface SignUpData {
@@ -144,38 +146,44 @@ export class AuthService {
   }
 
   /**
-   * Update profile
+   * Update profile (creates the row first if missing).
    */
   static async updateProfile(userId: string, updates: Partial<UserProfile>) {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError) throw authError;
+    if (!authData.user || authData.user.id !== userId) {
+      throw new Error('Session invalid. Please sign in again.');
+    }
+
+    await ProfilesService.ensureProfile(
+      userId,
+      authData.user.email ?? '',
+      authData.user.user_metadata?.full_name as string | undefined,
+      authData.user.user_metadata?.username as string | undefined
+    );
+
     const { data, error } = await supabase
       .from('profiles')
       .update(updates)
       .eq('id', userId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
+    if (!data) {
+      throw new Error('Profile not found. Please sign out and sign in again.');
+    }
     return data;
   }
 
   /**
    * Upload avatar: uploads image to storage then updates profile.avatar_url
    */
-  static async uploadAvatar(userId: string, imageUri: string, base64?: string | null): Promise<string> {
+  static async uploadAvatar(userId: string, imageUri: string, _base64?: string | null): Promise<string> {
     const BUCKET = 'avatars';
-    const ext = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
-    const path = `${userId}/${Date.now()}.${ext}`;
+    const path = `${userId}/${Date.now()}.jpg`;
 
-    let body: Blob | ArrayBuffer;
-    if (base64) {
-      const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      body = bytes.buffer;
-    } else {
-      const response = await fetch(imageUri);
-      body = await response.blob();
-    }
+    const body = await prepareJpegUploadBody(imageUri);
 
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(BUCKET)

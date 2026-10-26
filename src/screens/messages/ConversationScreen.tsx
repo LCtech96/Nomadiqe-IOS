@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useI18n } from '../../contexts/I18nContext';
 import { theme } from '../../theme';
 import { MessagesService, type Message } from '../../services/messages.service';
 import { formatRelativeTime } from '../../utils/formatters';
@@ -32,6 +33,7 @@ export default function ConversationScreen({
   const { recipientId, recipientName } = route.params;
   const { user } = useAuth();
   const { isDark } = useTheme();
+  const { t } = useI18n();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [inputText, setInputText] = useState('');
@@ -109,7 +111,7 @@ export default function ConversationScreen({
           contentContainerStyle={styles.list}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={[styles.emptyText, { color: secondary }]}>Nessun messaggio. Invia un messaggio per iniziare.</Text>
+              <Text style={[styles.emptyText, { color: secondary }]}>{t('messages.threadEmpty')}</Text>
             </View>
           }
           renderItem={({ item }) => {
@@ -129,7 +131,7 @@ export default function ConversationScreen({
         <View style={[styles.inputRow, { backgroundColor: bg }]}>
           <TextInput
             style={[styles.input, { backgroundColor: isDark ? '#2c2c2e' : '#e5e5ea', color: textColor }]}
-            placeholder="Messaggio..."
+            placeholder={t('messages.inputPlaceholder')}
             placeholderTextColor={secondary}
             value={inputText}
             onChangeText={setInputText}

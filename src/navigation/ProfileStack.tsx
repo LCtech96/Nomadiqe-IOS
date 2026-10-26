@@ -10,9 +10,12 @@ import { ProfileStackParamList } from '../types/navigation';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import AdminScreen from '../screens/profile/AdminScreen';
 import DashboardScreen from '../screens/profile/DashboardScreen';
+import CreateServiceScreen from '../screens/jolly/CreateServiceScreen';
 import HostStructureScreen from '../screens/host/HostStructureScreen';
 import HostStructureViewScreen from '../screens/host/HostStructureViewScreen';
 import EditStructureScreen from '../screens/host/EditStructureScreen';
+import PropertyGuideScreen from '../screens/host/PropertyGuideScreen';
+import PropertyGuideSectionScreen from '../screens/host/PropertyGuideSectionScreen';
 import NewPropertyOnboardingScreen from '../screens/host/NewPropertyOnboardingScreen';
 import NotificationsScreen from '../screens/profile/NotificationsScreen';
 import MessagesListScreen from '../screens/messages/MessagesListScreen';
@@ -26,6 +29,8 @@ import SupportConversationScreen from '../screens/profile/SupportConversationScr
 import AdminSupportTicketScreen from '../screens/profile/AdminSupportTicketScreen';
 import HostCollaborationRequestDetailScreen from '../screens/profile/HostCollaborationRequestDetailScreen';
 import HostTravelerLinkScreen from '../screens/profile/HostTravelerLinkScreen';
+import HostReferralLinksScreen from '../screens/profile/HostReferralLinksScreen';
+import CreatorDepartureScreen from '../screens/profile/CreatorDepartureScreen';
 import ViewUserProfileScreen from '../screens/profile/ViewUserProfileScreen';
 import AffiliateLinkRequestsScreen from '../screens/profile/AffiliateLinkRequestsScreen';
 import JollyProductListScreen from '../screens/jolly/JollyProductListScreen';
@@ -48,8 +53,11 @@ export function ProfileStack() {
       <Stack.Screen name="RequestSupport" component={RequestSupportScreen} />
       <Stack.Screen name="SupportConversation" component={SupportConversationScreen} />
       <Stack.Screen name="Dashboard" component={DashboardScreen} />
+      <Stack.Screen name="CreateService" component={CreateServiceScreen} />
       <Stack.Screen name="HostCollaborationRequestDetail" component={HostCollaborationRequestDetailScreen} />
       <Stack.Screen name="HostTravelerLink" component={HostTravelerLinkScreen} />
+      <Stack.Screen name="HostReferralLinks" component={HostReferralLinksScreen} />
+      <Stack.Screen name="CreatorDeparture" component={CreatorDepartureScreen} />
       <Stack.Screen name="ViewUserProfile" component={ViewUserProfileScreen} />
       <Stack.Screen name="AffiliateLinkRequests" component={AffiliateLinkRequestsScreen} />
       <Stack.Screen name="JollyProductList" component={JollyProductListScreen} />
@@ -57,6 +65,8 @@ export function ProfileStack() {
       <Stack.Screen name="HostStructure" component={HostStructureScreen} />
       <Stack.Screen name="HostStructureView" component={HostStructureViewScreen} />
       <Stack.Screen name="EditStructure" component={EditStructureScreen} />
+      <Stack.Screen name="PropertyGuide" component={PropertyGuideScreen} />
+      <Stack.Screen name="PropertyGuideSection" component={PropertyGuideSectionScreen} />
       <Stack.Screen name="NewPropertyOnboarding" component={NewPropertyOnboardingScreen} />
       <Stack.Screen name="Admin" component={AdminScreen} />
       <Stack.Screen name="AdminSupportTicket" component={AdminSupportTicketScreen} />

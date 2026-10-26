@@ -6,12 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#4F46E5"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.nomadiqe.app",
@@ -20,7 +14,6 @@
         "NSPhotoLibraryUsageDescription": "Nomadiqe needs access to your photo library to upload photos and videos",
         "NSLocationWhenInUseUsageDescription": "Nomadiqe needs your location to show nearby properties",
         "UIBackgroundModes": [
-          "remote-notification",
           "remote-notification"
         ],
         "ITSAppUsesNonExemptEncryption": false
@@ -32,7 +25,6 @@
         "backgroundColor": "#4F46E5"
       },
       "package": "com.nomadiqe.app",
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA",
@@ -56,7 +48,6 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/notification-icon.png",
           "color": "#4F46E5"
         }
       ],
@@ -70,9 +61,6 @@
       "eas": {
         "projectId": "f8760479-d3b7-4660-a96d-b5a081ba294d"
       }
-    },
-    "cli": {
-      "appVersionSource": "local"
     }
   }
 }

@@ -101,10 +101,10 @@ function AmenityChip({
 }
 
 const DISCOUNT_5_OPTIONS = [
-  { value: 5, label: '5%' },
-  { value: 10, label: '10%' },
-  { value: -1, label: 'Personalizzato' },
-] as const;
+  { value: 5 as const, labelKey: '5%' },
+  { value: 10 as const, labelKey: '10%' },
+  { value: -1 as const, labelKey: 'propertyOnboarding.discountCustom' },
+];
 
 export default function EditStructureScreen({
   navigation,
@@ -118,6 +118,7 @@ export default function EditStructureScreen({
   const [saving, setSaving] = useState(false);
 
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [bedrooms, setBedrooms] = useState(1);
   const [beds, setBeds] = useState(1);
   const [amenities, setAmenities] = useState<string[]>([]);
@@ -138,6 +139,7 @@ export default function EditStructureScreen({
       if (p) {
         setProperty(p);
         setTitle(p.title || '');
+        setDescription(p.description || '');
         setBedrooms(p.bedrooms ?? 1);
         setBeds(p.beds ?? 1);
         setAmenities(p.amenities ?? []);
@@ -182,13 +184,14 @@ export default function EditStructureScreen({
     if (!property?.id) return;
     const price = parseFloat(basePrice.replace(',', '.'));
     if (Number.isNaN(price) || price < 0) {
-      Alert.alert('Errore', 'Inserisci un prezzo valido.');
+      Alert.alert(t('common.error'), t('propertyOnboarding.invalidPriceMessage'));
       return;
     }
     setSaving(true);
     try {
       await PropertiesService.updateProperty(property.id, {
-        title: title.trim() || 'Struttura',
+        title: title.trim() || t('propertyOnboarding.defaultStructureName'),
+        description: description.trim(),
         bedrooms,
         beds,
         amenities,
@@ -198,10 +201,10 @@ export default function EditStructureScreen({
         discount_14_nights_percent: getDiscount14Value(),
         offer_type: offerType,
       });
-      Alert.alert('Salvato', 'Modifiche salvate.');
+      Alert.alert(t('propertyOnboarding.savedTitle'), t('propertyOnboarding.savedMessage'));
       navigation.goBack();
     } catch (e) {
-      Alert.alert('Errore', 'Impossibile salvare.');
+      Alert.alert(t('common.error'), t('propertyOnboarding.saveErrorMessage'));
     } finally {
       setSaving(false);
     }
@@ -210,12 +213,12 @@ export default function EditStructureScreen({
   const handleDelete = () => {
     if (!property?.id) return;
     Alert.alert(
-      'Elimina struttura',
-      'Sei sicuro? Questa azione non si può annullare. Verranno eliminati anche foto, calendario e dati collegati.',
+      t('propertyOnboarding.deleteStructureTitle'),
+      t('propertyOnboarding.deleteStructureMessage'),
       [
-        { text: 'Annulla', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Elimina',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -223,7 +226,7 @@ export default function EditStructureScreen({
               navigation.getParent()?.goBack();
               navigation.navigate('Profile');
             } catch (e) {
-              Alert.alert('Errore', 'Impossibile eliminare la struttura.');
+              Alert.alert(t('common.error'), t('propertyOnboarding.deleteStructureError'));
             }
           },
         },
@@ -246,11 +249,11 @@ export default function EditStructureScreen({
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={24} color={textColor} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: textColor }]}>Modifica struttura</Text>
+          <Text style={[styles.headerTitle, { color: textColor }]}>{t('propertyOnboarding.editStructureTitle')}</Text>
           <View style={styles.headerRight} />
         </View>
         <View style={styles.centered}>
-          <Text style={[styles.notFound, { color: secondary }]}>Struttura non trovata</Text>
+          <Text style={[styles.notFound, { color: secondary }]}>{t('propertyOnboarding.notFound')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -262,7 +265,7 @@ export default function EditStructureScreen({
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={textColor} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: textColor }]}>Modifica struttura</Text>
+        <Text style={[styles.headerTitle, { color: textColor }]}>{t('propertyOnboarding.editStructureTitle')}</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -280,6 +283,18 @@ export default function EditStructureScreen({
           onChangeText={setTitle}
         />
 
+        <Text style={[styles.label, { color: secondary }]}>{t('properties.description')}</Text>
+        <TextInput
+          style={[styles.textArea, { backgroundColor: cardBg, color: textColor }]}
+          placeholder={t('propertyOnboarding.descriptionPlaceholder')}
+          placeholderTextColor={secondary}
+          value={description}
+          onChangeText={setDescription}
+          multiline
+          numberOfLines={5}
+          textAlignVertical="top"
+        />
+
         <Text style={[styles.label, { color: secondary }]}>{t('propertyOnboarding.bedrooms')}</Text>
         <StepperRow
           label={t('propertyOnboarding.bedrooms')}
@@ -291,9 +306,9 @@ export default function EditStructureScreen({
           secondary={secondary}
         />
 
-        <Text style={[styles.label, { color: secondary }]}>Posti letto</Text>
+        <Text style={[styles.label, { color: secondary }]}>{t('propertyOnboarding.beds')}</Text>
         <StepperRow
-          label="Posti letto"
+          label={t('propertyOnboarding.beds')}
           value={beds}
           onChange={setBeds}
           min={1}
@@ -302,7 +317,7 @@ export default function EditStructureScreen({
           secondary={secondary}
         />
 
-        <Text style={[styles.sectionTitle, { color: textColor }]}>Servizi</Text>
+        <Text style={[styles.sectionTitle, { color: textColor }]}>{t('properties.amenities')}</Text>
         <View style={styles.amenityGrid}>
           {[...AMENITIES_REQUESTED, ...AMENITIES_INTEREST, ...AMENITIES_SECURITY].map((key) => (
             <AmenityChip
@@ -328,9 +343,9 @@ export default function EditStructureScreen({
           maxLength={3}
         />
 
-        <Text style={[styles.sectionTitle, { color: textColor }]}>Tipo offerta KOL&BED</Text>
+        <Text style={[styles.sectionTitle, { color: textColor }]}>{t('propertyOnboarding.kolbedOfferTypeTitle')}</Text>
         <Text style={[styles.hint, { color: secondary }]}>
-          Determina quali creator (in base alle opportunità approvate) possono vedere questa struttura.
+          {t('propertyOnboarding.kolbedOfferTypeHint')}
         </Text>
         <View style={styles.amenityGrid}>
           {STRUCTURE_OPPORTUNITIES.map((opt) => (
@@ -353,17 +368,17 @@ export default function EditStructureScreen({
           ))}
         </View>
 
-        <Text style={[styles.label, { color: secondary }]}>Prezzo a notte (€)</Text>
+        <Text style={[styles.label, { color: secondary }]}>{t('propertyOnboarding.pricePerNightLabel')}</Text>
         <TextInput
           style={[styles.input, { backgroundColor: cardBg, color: textColor }]}
-          placeholder="Es. 120"
+          placeholder={t('propertyOnboarding.basePricePlaceholder')}
           placeholderTextColor={secondary}
           value={basePrice}
           onChangeText={setBasePrice}
           keyboardType="decimal-pad"
         />
 
-        <Text style={[styles.sectionTitle, { color: textColor }]}>Sconto per soggiorni superiori a 5 notti</Text>
+        <Text style={[styles.sectionTitle, { color: textColor }]}>{t('propertyOnboarding.discount5Title')}</Text>
         <View style={styles.discountRow}>
           {DISCOUNT_5_OPTIONS.map((opt) => (
             <TouchableOpacity
@@ -375,7 +390,7 @@ export default function EditStructureScreen({
               onPress={() => setDiscount5Option(opt.value)}
             >
               <Text style={[styles.discountChipText, { color: discount5Option === opt.value ? '#fff' : textColor }]}>
-                {opt.label}
+                {opt.labelKey.includes('.') ? t(opt.labelKey) : opt.labelKey}
               </Text>
             </TouchableOpacity>
           ))}
@@ -383,7 +398,7 @@ export default function EditStructureScreen({
         {discount5Option === -1 && (
           <TextInput
             style={[styles.input, { backgroundColor: cardBg, color: textColor, marginTop: 8 }]}
-            placeholder="% (es. 15)"
+            placeholder={t('propertyOnboarding.discountCustomPlaceholder')}
             placeholderTextColor={secondary}
             value={discount5Custom}
             onChangeText={setDiscount5Custom}
@@ -391,15 +406,26 @@ export default function EditStructureScreen({
           />
         )}
 
-        <Text style={[styles.sectionTitle, { color: textColor }]}>Sconto per soggiorni superiori a 2 settimane (%)</Text>
+        <Text style={[styles.sectionTitle, { color: textColor }]}>{t('propertyOnboarding.discount14Title')}</Text>
         <TextInput
           style={[styles.input, { backgroundColor: cardBg, color: textColor }]}
-          placeholder="Es. 20 (personalizzato)"
+          placeholder={t('propertyOnboarding.discount14Placeholder')}
           placeholderTextColor={secondary}
           value={discount14}
           onChangeText={setDiscount14}
           keyboardType="decimal-pad"
         />
+
+        <TouchableOpacity
+          style={[styles.guideBtn, { backgroundColor: cardBg, borderColor: theme.colors.primary.blue }]}
+          onPress={() => navigation.navigate('PropertyGuide', { propertyId: property.id })}
+        >
+          <Ionicons name="book-outline" size={22} color={theme.colors.primary.blue} />
+          <Text style={[styles.guideBtnText, { color: theme.colors.primary.blue }]}>
+            {t('propertyGuide.openGuideCta')}
+          </Text>
+          <Ionicons name="chevron-forward" size={20} color={secondary} />
+        </TouchableOpacity>
 
         <Button onPress={handleSave} disabled={saving} style={styles.saveBtn}>
           {saving ? <ActivityIndicator size="small" color="#fff" /> : t('common.save')}
@@ -407,7 +433,9 @@ export default function EditStructureScreen({
 
         <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
           <Ionicons name="trash-outline" size={22} color={theme.colors.error} />
-          <Text style={[styles.deleteBtnText, { color: theme.colors.error }]}>Elimina struttura</Text>
+          <Text style={[styles.deleteBtnText, { color: theme.colors.error }]}>
+            {t('propertyOnboarding.deleteStructureAction')}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -437,6 +465,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     ...theme.typography.body,
   },
+  textArea: {
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minHeight: 120,
+    ...theme.typography.body,
+  },
   sectionTitle: { ...theme.typography.headline, fontWeight: '600', marginTop: 24, marginBottom: 12 },
   hint: { ...theme.typography.caption1, marginBottom: 8 },
   stepperRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
@@ -450,7 +485,18 @@ const styles = StyleSheet.create({
   discountRow: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
   discountChip: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, borderWidth: 2 },
   discountChipText: { ...theme.typography.subheadline, fontWeight: '600' },
-  saveBtn: { marginTop: 24 },
+  guideBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 24,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  guideBtnText: { ...theme.typography.subheadline, fontWeight: '600', flex: 1 },
+  saveBtn: { marginTop: 16 },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 32, paddingVertical: 16 },
   deleteBtnText: { ...theme.typography.headline, fontWeight: '600' },
   notFound: { ...theme.typography.body },

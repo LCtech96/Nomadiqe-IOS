@@ -168,7 +168,7 @@ export default function EditProfileScreen({
       >
         <TouchableOpacity style={styles.avatarWrap} onPress={pickImage} disabled={uploadingAvatar}>
           <Avatar
-            source={profile.avatar_url ? { uri: profile.avatar_url } : undefined}
+            uri={profile.avatar_url}
             size={100}
           />
           {uploadingAvatar && (
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   content: { padding: theme.spacing.screenPadding, paddingBottom: 40 },
   avatarWrap: { alignSelf: 'center', marginBottom: theme.spacing.xl, position: 'relative' },
   avatarOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 50,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',

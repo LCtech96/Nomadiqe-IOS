@@ -5,7 +5,7 @@
  * Deep link affiliato: nomadiqe://r/TOKEN → registra apertura e notifica host+creator.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, Text, Image, StyleSheet } from 'react-native';
@@ -14,6 +14,7 @@ import { RootStackParamList } from '../types/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { config } from '../constants/config';
 import { AffiliateService } from '../services/affiliate.service';
+import { navigationRef, navigateToPropertyGuide } from './navigationRef';
 
 // Import navigators
 import { AuthStack } from './AuthStack';
@@ -35,6 +36,23 @@ function parsePropertyIdFromUrl(url: string | null): string | null {
     return id || null;
   }
   return null;
+}
+
+/** Deep link guida struttura: nomadiqe://property-guide/PROPERTY_ID?t=TOKEN */
+function parsePropertyGuideFromUrl(url: string | null): { propertyId: string; token?: string } | null {
+  if (!url) return null;
+  const prefix = `${scheme}://property-guide/`;
+  if (!url.startsWith(prefix)) return null;
+  const rest = url.slice(prefix.length);
+  const [idPart, query] = rest.split('?');
+  const propertyId = idPart.split('#')[0].trim();
+  if (!propertyId) return null;
+  let token: string | undefined;
+  if (query) {
+    const match = query.match(/(?:^|&)t=([^&]+)/);
+    if (match?.[1]) token = decodeURIComponent(match[1]);
+  }
+  return { propertyId, token };
 }
 
 /** Estrae token link affiliato da URL (nomadiqe://r/TOKEN o https://.../r/TOKEN). */
@@ -64,9 +82,15 @@ async function handleAffiliateLinkOpen(token: string): Promise<void> {
 export function RootNavigator() {
   const { user, profile, loading } = useAuth();
   const [initialGuestPropertyId, setInitialGuestPropertyId] = useState<string | null>(null);
+  const pendingGuideRef = useRef<{ propertyId: string; token?: string } | null>(null);
 
   useEffect(() => {
     Linking.getInitialURL().then((url) => {
+      const guide = parsePropertyGuideFromUrl(url);
+      if (guide) {
+        pendingGuideRef.current = guide;
+        return;
+      }
       const id = parsePropertyIdFromUrl(url);
       if (id) setInitialGuestPropertyId(id);
     });
@@ -75,6 +99,11 @@ export function RootNavigator() {
   useEffect(() => {
     if (!user) return;
     const processUrl = (url: string | null) => {
+      const guide = parsePropertyGuideFromUrl(url);
+      if (guide) {
+        navigateToPropertyGuide(guide.propertyId, guide.token);
+        return;
+      }
       const token = parseAffiliateTokenFromUrl(url);
       if (token) handleAffiliateLinkOpen(token).catch(() => {});
     };
@@ -83,10 +112,19 @@ export function RootNavigator() {
     return () => sub.remove();
   }, [user?.id]);
 
-  const isLoading = Boolean(loading);
   const onboardingCompleted =
     profile?.onboarding_completed === true ||
     String(profile?.onboarding_completed).toLowerCase() === 'true';
+
+  useEffect(() => {
+    if (!user || !onboardingCompleted || !pendingGuideRef.current) return;
+    const { propertyId, token } = pendingGuideRef.current;
+    pendingGuideRef.current = null;
+    const timer = setTimeout(() => navigateToPropertyGuide(propertyId, token), 500);
+    return () => clearTimeout(timer);
+  }, [user?.id, onboardingCompleted]);
+
+  const isLoading = Boolean(loading);
 
   if (isLoading) {
     return (
@@ -105,7 +143,7 @@ export function RootNavigator() {
   const showGuestFlow = !user && initialGuestPropertyId;
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator screenOptions={screenOptions}>
         {!user ? (
           showGuestFlow ? (

@@ -28,6 +28,7 @@ import { useI18n } from '../../contexts/I18nContext';
 import { theme } from '../../theme';
 import { AuthService } from '../../services/auth.service';
 import { claimInvite } from '../../services/invitations.service';
+import { inviteRoleToPointAction } from '../../utils/inviteRoles';
 import { awardPoints } from '../../services/points.service';
 import { NotificationsService } from '../../services/notifications.service';
 import { usernameSchema, bioSchema } from '../../utils/validators';
@@ -135,7 +136,7 @@ export default function ProfileCompletionScreen({ navigation, route }: Onboardin
         try {
           const result = await claimInvite(pendingInviteCode, user.id);
           if (result) {
-            const actionType = result.role === 'host' ? 'invite_host' : 'invite_creator';
+            const actionType = inviteRoleToPointAction(result.role);
             await awardPoints(result.inviterId, actionType);
           }
         } catch (_) {}
@@ -264,7 +265,7 @@ const styles = StyleSheet.create({
   subtitle: { ...theme.typography.body },
   avatarWrap: { alignSelf: 'center', marginBottom: theme.spacing.xl, position: 'relative' },
   avatarOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 50,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',

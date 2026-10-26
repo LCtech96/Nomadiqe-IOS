@@ -23,7 +23,7 @@ import { theme } from '../../theme';
 import { PropertiesService } from '../../services/properties.service';
 import type { OnboardingScreenProps } from '../../types/navigation';
 
-type KolbedProgramType = 'kolbed_100' | 'gigo_50' | 'paid_collab';
+type KolbedProgramType = 'kolbed_100' | 'kolbed_50' | 'paid_collab';
 
 const ONBOARDING_KOLBED_MIN_NIGHTS_KEY = '@nomadiqe/onboarding_kolbed_min_nights';
 const MIN_NIGHTS_OPTIONS = [7, 14, 21, 28, 35];
@@ -144,8 +144,8 @@ export default function HostKolbedProgramScreen({
 
         {/* Pulizie */}
         <TouchableOpacity
-          style={[styles.programCard, cardStyle('gigo_50')]}
-          onPress={() => setProgram('gigo_50')}
+          style={[styles.programCard, cardStyle('kolbed_50')]}
+          onPress={() => setProgram('kolbed_50')}
         >
           <View style={styles.programCardContent}>
             <Text style={[styles.programTitle, { color: textColor }]}>

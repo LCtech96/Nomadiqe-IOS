@@ -10,6 +10,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -61,6 +62,9 @@ export default function HostPropertyBasicInfoScreen({
 }: OnboardingScreenProps<'HostPropertyBasicInfo'>) {
   const { isDark } = useTheme();
   const { t } = useI18n();
+  const [propertyTitle, setPropertyTitle] = useState('');
+  const [city, setCity] = useState('');
+  const [country, setCountry] = useState('');
   const [guests, setGuests] = useState(2);
   const [bedrooms, setBedrooms] = useState(1);
   const [beds, setBeds] = useState(1);
@@ -69,16 +73,31 @@ export default function HostPropertyBasicInfoScreen({
   const bg = isDark ? theme.colors.dark.background : theme.colors.light.background;
   const textColor = isDark ? theme.colors.dark.label : theme.colors.light.label;
   const secondary = isDark ? theme.colors.dark.secondaryLabel : theme.colors.light.secondaryLabel;
+  const inputBg = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
+  const inputBorder = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
 
   const handleContinue = async () => {
     try {
       await AsyncStorage.setItem(
         ONBOARDING_BASIC_INFO_KEY,
-        JSON.stringify({ guests, bedrooms, beds, bathrooms })
+        JSON.stringify({
+          propertyTitle: propertyTitle.trim(),
+          city: city.trim(),
+          country: country.trim().toUpperCase(),
+          guests,
+          bedrooms,
+          beds,
+          bathrooms,
+        })
       );
     } catch (_) {}
     navigation.navigate('HostPropertyAmenities');
   };
+
+  const canContinue =
+    propertyTitle.trim().length >= 2 &&
+    city.trim().length >= 2 &&
+    country.trim().length >= 2;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bg }]} edges={['top']}>
@@ -96,6 +115,42 @@ export default function HostPropertyBasicInfoScreen({
           <Text style={[styles.subtitle, { color: secondary }]}>
             {t('propertyOnboarding.step2Subtitle')}
           </Text>
+        </View>
+
+        <View style={styles.formSection}>
+          <Text style={[styles.inputLabel, { color: textColor }]}>{t('propertyOnboarding.step2PropertyName')}</Text>
+          <TextInput
+            value={propertyTitle}
+            onChangeText={setPropertyTitle}
+            placeholder={t('propertyOnboarding.step2PropertyNamePlaceholder')}
+            placeholderTextColor={secondary}
+            style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorder, color: textColor }]}
+            autoCapitalize="words"
+            returnKeyType="next"
+          />
+
+          <Text style={[styles.inputLabel, { color: textColor }]}>{t('propertyOnboarding.step2City')}</Text>
+          <TextInput
+            value={city}
+            onChangeText={setCity}
+            placeholder={t('propertyOnboarding.step2CityPlaceholder')}
+            placeholderTextColor={secondary}
+            style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorder, color: textColor }]}
+            autoCapitalize="words"
+            returnKeyType="next"
+          />
+
+          <Text style={[styles.inputLabel, { color: textColor }]}>{t('propertyOnboarding.step2Country')}</Text>
+          <TextInput
+            value={country}
+            onChangeText={(v) => setCountry(v.toUpperCase())}
+            placeholder={t('propertyOnboarding.step2CountryPlaceholder')}
+            placeholderTextColor={secondary}
+            style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorder, color: textColor }]}
+            autoCapitalize="characters"
+            returnKeyType="done"
+            maxLength={3}
+          />
         </View>
 
         <StepperRow
@@ -135,7 +190,7 @@ export default function HostPropertyBasicInfoScreen({
           secondary={secondary}
         />
 
-        <Button onPress={handleContinue} size="lg" style={styles.button}>
+        <Button onPress={handleContinue} size="lg" style={styles.button} disabled={!canContinue}>
           {t('onboarding.continue')}
         </Button>
       </ScrollView>
@@ -162,6 +217,15 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
   },
   subtitle: { ...theme.typography.body },
+  formSection: { marginBottom: theme.spacing.lg, gap: 8 },
+  inputLabel: { ...theme.typography.caption1, fontWeight: '600', marginTop: 10 },
+  input: {
+    borderWidth: 1,
+    borderRadius: theme.borderRadius.lg,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    ...theme.typography.body,
+  },
   stepperRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -3,11 +3,26 @@
  * Environment variables and constants
  */
 
+import Constants from 'expo-constants';
+
+function readExpoPublic(key: string): string {
+  const extra = Constants.expoConfig?.extra as Record<string, string | undefined> | undefined;
+  const fromExtra = extra?.[key];
+  if (typeof fromExtra === 'string' && fromExtra.trim().length > 0) {
+    return fromExtra.trim();
+  }
+  const fromProcess = process.env[key];
+  if (typeof fromProcess === 'string' && fromProcess.trim().length > 0) {
+    return fromProcess.trim();
+  }
+  return '';
+}
+
 export const config = {
   // Supabase
   supabase: {
-    url: process.env.EXPO_PUBLIC_SUPABASE_URL || '',
-    anonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '',
+    url: readExpoPublic('EXPO_PUBLIC_SUPABASE_URL'),
+    anonKey: readExpoPublic('EXPO_PUBLIC_SUPABASE_ANON_KEY'),
   },
 
   // App
@@ -16,7 +31,7 @@ export const config = {
     version: '1.0.0',
     bundleId: 'com.nomadiqe.ios',
     /** Base URL per esportazione calendario iCal (Airbnb/Booking import). Es: https://xxx.supabase.co/functions/v1/ical-export */
-    calendarExportBaseUrl: process.env.EXPO_PUBLIC_CALENDAR_EXPORT_BASE_URL || '',
+    calendarExportBaseUrl: readExpoPublic('EXPO_PUBLIC_CALENDAR_EXPORT_BASE_URL'),
     /** Schema deep link per condivisione struttura. Es: nomadiqe (→ nomadiqe://property/ID) */
     shareScheme: 'nomadiqe',
   },

@@ -80,9 +80,12 @@ export interface Property {
   collaboration_booking_mode?: 'approve_first_5' | 'instant' | null;
   first_guest_type?: 'any_creator' | 'verified_creator' | null;
   weekend_supplement_percent?: number | null;
-  kolbed_program?: 'kolbed_100' | 'gigo_50' | 'paid_collab' | null;
+  kolbed_program?: 'kolbed_100' | 'kolbed_50' | 'paid_collab' | null;
   paid_collab_min_budget?: number | null;
   paid_collab_max_budget?: number | null;
+  region?: string | null;
+  street_address?: string | null;
+  tier_deliverables?: Record<string, unknown> | null;
   
   // Stats
   views_count: number;

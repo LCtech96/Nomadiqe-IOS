@@ -79,3 +79,4 @@ web-build/
 # Misc
 *.log
 *.lock
+supabase/.temp/

@@ -1,6 +1,6 @@
 /**
  * Jolly Subcategory Screen
- * Sottocategoria per ruolo Jolly: cleaner, property manager, assistenza, autista, fornitore
+ * Sottocategoria per ruolo Jolly: cleaner, property manager, fornitore, restaurant, excursions, home products
  */
 
 import React, { useState } from 'react';
@@ -20,23 +20,17 @@ import type { OnboardingScreenProps } from '../../types/navigation';
 export type JollySubcategory =
   | 'cleaner'
   | 'property_manager'
-  | 'assistenza'
-  | 'autista'
   | 'fornitore'
   | 'restaurant'
   | 'excursions'
-  | 'boat_excursions'
   | 'home_products';
 
 const JOLLY_SUBCATEGORIES: { value: JollySubcategory; labelKey: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { value: 'cleaner', labelKey: 'onboarding.jollyCleaner', icon: 'sparkles' },
   { value: 'property_manager', labelKey: 'onboarding.jollyPropertyManager', icon: 'business' },
-  { value: 'assistenza', labelKey: 'onboarding.jollyAssistenza', icon: 'headset' },
-  { value: 'autista', labelKey: 'onboarding.jollyAutista', icon: 'car' },
   { value: 'fornitore', labelKey: 'onboarding.jollyFornitore', icon: 'cube' },
   { value: 'restaurant', labelKey: 'onboarding.jollyRestaurant', icon: 'restaurant' },
   { value: 'excursions', labelKey: 'onboarding.jollyExcursions', icon: 'trail-sign' },
-  { value: 'boat_excursions', labelKey: 'onboarding.jollyBoatExcursions', icon: 'boat' },
   { value: 'home_products', labelKey: 'onboarding.jollyHomeProducts', icon: 'cart' },
 ];
 

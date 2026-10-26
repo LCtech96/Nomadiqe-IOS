@@ -1,7 +1,8 @@
 -- ============================================
 -- NOMADIQE - Moderazione commenti (approvazione admin)
 -- I commenti nascono "pending"; l'admin approva/rifiuta. Solo gli approvati sono visibili nel feed.
--- Esegui in Supabase → SQL Editor
+-- Esegui in Supabase → SQL Editor dopo supabase-creator-approval-rpc.sql
+-- (richiede public.is_nomadiqe_admin())
 -- ============================================
 
 -- 1) Aggiungi colonna approval_status ai commenti
@@ -16,7 +17,7 @@ CREATE POLICY "Comments viewable by everyone"
   USING (
     approval_status = 'approved'
     OR auth.uid() = user_id
-    OR (SELECT email FROM public.profiles WHERE id = auth.uid()) = 'lucacorrao1996@gmail.com'
+    OR public.is_nomadiqe_admin()
   );
 
 -- 3) Inserimento: utenti autenticati possono creare commenti (solo con il proprio user_id)
@@ -29,9 +30,7 @@ CREATE POLICY "Users can create comments"
 DROP POLICY IF EXISTS "Admin can update comment approval" ON public.post_comments;
 CREATE POLICY "Admin can update comment approval"
   ON public.post_comments FOR UPDATE
-  USING (
-    (SELECT email FROM public.profiles WHERE id = auth.uid()) = 'lucacorrao1996@gmail.com'
-  )
+  USING (public.is_nomadiqe_admin())
   WITH CHECK (true);
 
 -- I like restano come sono: tutti gli utenti autenticati possono mettere like (policy esistente).

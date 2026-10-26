@@ -42,6 +42,8 @@ export default function HostBasePriceScreen({
     try {
       await PropertiesService.updateProperty(propertyId, {
         base_price_per_night: value,
+        is_active: true,
+        status: 'active',
       });
     } catch (_) {}
     navigation.navigate('HostOnboarding');

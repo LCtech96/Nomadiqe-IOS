@@ -5,7 +5,7 @@
 
 import { supabase } from './supabase';
 import { config } from '../constants/config';
-import { ensureJpegUriForUpload } from '../utils/imageUpload';
+import { prepareJpegUploadBody } from '../utils/imageUpload';
 import type { Property } from '../types/property';
 
 export type AvailabilityStatus = 'available' | 'occupied' | 'closed' | 'collab_available';
@@ -36,6 +36,13 @@ export interface PropertyMediaRow {
   created_at: string;
 }
 
+/** Titolo struttura e host (da properties.host_id → profiles) per moderazione admin */
+export interface PropertyAdminSummary {
+  title: string;
+  hostId: string;
+  hostName: string;
+}
+
 const BUCKET_PROPERTIES = 'properties';
 
 export class PropertiesService {
@@ -44,7 +51,7 @@ export class PropertiesService {
    */
   static async createProperty(
     hostId: string,
-    title: string = 'La mia struttura',
+    title: string = 'My structure',
     structureType?: string | null
   ) {
     const { data, error } = await supabase
@@ -98,15 +105,25 @@ export class PropertiesService {
       collaboration_booking_mode: 'approve_first_5' | 'instant' | null;
       first_guest_type: 'any_creator' | 'verified_creator' | null;
       weekend_supplement_percent: number | null;
-      kolbed_program: 'kolbed_100' | 'gigo_50' | 'paid_collab' | null;
+      kolbed_program: 'kolbed_100' | 'kolbed_50' | 'paid_collab' | null;
       paid_collab_min_budget: number | null;
       paid_collab_max_budget: number | null;
       status: string;
+      is_active: boolean;
       airbnb_ical_import_url: string | null;
       booking_ical_import_url: string | null;
       discount_5_nights_percent: number | null;
       discount_14_nights_percent: number | null;
       offer_type: 'basic' | 'basic_paid' | 'medium' | 'medium_fees' | 'luxury' | 'luxury_paid' | null;
+      region: string | null;
+      street_address: string | null;
+      tier_deliverables: Record<string, unknown> | null;
+      check_in_time: string | null;
+      check_out_time: string | null;
+      postal_code: string | null;
+      state: string | null;
+      latitude: number;
+      longitude: number;
     }>
   ) {
     const { data, error } = await supabase
@@ -170,8 +187,8 @@ export class PropertiesService {
   }
 
   /**
-   * Strutture visibili ai content creator (KOL&BED e Esplora).
-   * Solo proprietà attive con almeno un'immagine.
+   * Strutture visibili ai content creator (KOL&BED).
+   * Solo proprietà attive con almeno un'immagine approvata.
    * Se offerTypes è fornito (creator approvato), filtra per offer_type in quella lista.
    */
   static async getPropertiesForCreators(offerTypes?: string[]): Promise<Property[]> {
@@ -189,6 +206,42 @@ export class PropertiesService {
     if (error) throw error;
     const list = (data || []) as Property[];
     return list.filter((p) => Array.isArray(p.images) && p.images.length > 0);
+  }
+
+  /**
+   * Tutte le strutture non archiviate per la tab Esplora (creator).
+   * Non richiede immagini approvate; usa RPC per bypassare RLS su draft/inactive.
+   * Esegui scripts/supabase-creator-explore-properties.sql in Supabase.
+   */
+  static async getPropertiesForExplore(): Promise<Property[]> {
+    const { data, error } = await supabase.rpc('get_properties_for_explore');
+    if (!error && data) {
+      return (data as Property[]) ?? [];
+    }
+
+    // Fallback se la RPC non è ancora deployata: solo proprietà attive (senza filtro immagini)
+    const { data: fallback, error: fallbackError } = await supabase
+      .from('properties')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+
+    if (fallbackError) throw fallbackError;
+    return (fallback || []) as Property[];
+  }
+
+  /**
+   * Dettaglio struttura per Esplora (creator). Usa RPC per bypassare RLS su draft/inactive.
+   */
+  static async getPropertyForExplore(propertyId: string): Promise<Property | null> {
+    const { data, error } = await supabase.rpc('get_property_for_explore', {
+      p_property_id: propertyId,
+    });
+    if (!error && data) {
+      return data as Property;
+    }
+
+    return this.getProperty(propertyId);
   }
 
   /**
@@ -329,15 +382,7 @@ export class PropertiesService {
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
       body = bytes.buffer;
     } else {
-      let uriToFetch = imageUri;
-      try {
-        uriToFetch = await ensureJpegUriForUpload(imageUri);
-      } catch {
-        // fallback: prova upload diretto (es. già JPEG)
-        uriToFetch = imageUri;
-      }
-      const response = await fetch(uriToFetch);
-      body = await response.blob();
+      body = await prepareJpegUploadBody(imageUri);
     }
     const { data, error } = await supabase.storage
       .from(BUCKET_PROPERTIES)
@@ -432,17 +477,61 @@ export class PropertiesService {
    * Titoli strutture per una lista di id (per admin)
    */
   static async getPropertyTitles(propertyIds: string[]): Promise<Record<string, string>> {
-    if (propertyIds.length === 0) return {};
-    const { data, error } = await supabase
-      .from('properties')
-      .select('id, title')
-      .in('id', propertyIds);
-    if (error) throw error;
+    const summaries = await this.getPropertyAdminSummaries(propertyIds);
     const map: Record<string, string> = {};
-    (data ?? []).forEach((p: { id: string; title: string }) => {
-      map[p.id] = p.title ?? 'Struttura';
+    Object.entries(summaries).forEach(([id, s]) => {
+      map[id] = s.title;
     });
     return map;
+  }
+
+  /**
+   * Titolo struttura e nome host (host_id su properties → profiles; property_media non ha user id).
+   * Usa RPC SECURITY DEFINER: RLS su properties blocca le draft (is_active = false) per l'admin.
+   */
+  static async getPropertyAdminSummaries(
+    propertyIds: string[]
+  ): Promise<Record<string, PropertyAdminSummary>> {
+    if (propertyIds.length === 0) return {};
+
+    const { data, error } = await supabase.rpc('get_property_admin_summaries', {
+      p_property_ids: propertyIds,
+    });
+    if (error) throw error;
+
+    const map: Record<string, PropertyAdminSummary> = {};
+    const rows = (data ?? {}) as Record<
+      string,
+      { title?: string; host_id?: string; host_name?: string }
+    >;
+
+    Object.entries(rows).forEach(([id, row]) => {
+      map[id] = {
+        title: row.title?.trim() || 'Struttura',
+        hostId: row.host_id ?? '',
+        hostName: row.host_name?.trim() || 'Host',
+      };
+    });
+
+    return map;
+  }
+
+  /**
+   * Approva tutti i media pending di una struttura (admin).
+   */
+  static async approveAllPendingPropertyMedia(mediaIds: string[], reviewedBy?: string): Promise<void> {
+    for (const mediaId of mediaIds) {
+      await this.approvePropertyMedia(mediaId, reviewedBy);
+    }
+  }
+
+  /**
+   * Rifiuta tutti i media pending di una struttura (admin).
+   */
+  static async rejectAllPendingPropertyMedia(mediaIds: string[], reviewedBy?: string): Promise<void> {
+    for (const mediaId of mediaIds) {
+      await this.rejectPropertyMedia(mediaId, reviewedBy);
+    }
   }
 
   /**

@@ -407,8 +407,8 @@ INSERT INTO public.creator_niches (user_id, niche)
 SELECT p.id, n FROM public.profiles p, unnest(ARRAY['fashion', 'travel', 'lifestyle']) n WHERE p.email = 'creator15@nomadiqe.seed';
 
 -- ============================================
--- 15 JOLLY (avatar, jolly_subcategory, bio per servizio)
--- cleaner, property_manager, assistenza, autista, fornitore (2+1 ciascuno), + 5 vari
+-- JOLLY (avatar, jolly_subcategory, bio per servizio)
+-- cleaner, property_manager, fornitore, restaurant, excursions, home_products
 -- ============================================
 
 UPDATE public.profiles SET
@@ -452,46 +452,6 @@ UPDATE public.profiles SET
 WHERE email = 'jolly4@nomadiqe.seed';
 
 UPDATE public.profiles SET
-  full_name = 'Maria Assistenza',
-  username = 'mariaassistenza',
-  role = 'jolly',
-  jolly_subcategory = 'assistenza',
-  avatar_url = 'https://picsum.photos/seed/jl5/400/400',
-  bio = 'Assistenza clienti e supporto per strutture ricettive. Prenotazioni, informazioni, gestione reclami. Disponibile 7/7.',
-  onboarding_completed = true
-WHERE email = 'jolly5@nomadiqe.seed';
-
-UPDATE public.profiles SET
-  full_name = 'Paolo Support',
-  username = 'paolosupport',
-  role = 'jolly',
-  jolly_subcategory = 'assistenza',
-  avatar_url = 'https://picsum.photos/seed/jl6/400/400',
-  bio = 'Supporto operativo per host: prenotazioni, comunicazione con ospiti, coordinamento check-in. Lavoro da remoto.',
-  onboarding_completed = true
-WHERE email = 'jolly6@nomadiqe.seed';
-
-UPDATE public.profiles SET
-  full_name = 'Giuseppe Shuttle',
-  username = 'giuseppeshuttle',
-  role = 'jolly',
-  jolly_subcategory = 'autista',
-  avatar_url = 'https://picsum.photos/seed/jl7/400/400',
-  bio = 'Servizio navetta e transfer aeroporto/stazione – struttura. Auto e minivan. Disponibile 24h. Roma e Fiumicino.',
-  onboarding_completed = true
-WHERE email = 'jolly7@nomadiqe.seed';
-
-UPDATE public.profiles SET
-  full_name = 'Marco Driver',
-  username = 'marcodriver',
-  role = 'jolly',
-  jolly_subcategory = 'autista',
-  avatar_url = 'https://picsum.photos/seed/jl8/400/400',
-  bio = 'Transfer e shuttle per ospiti. Servizio NCC. Zone: Napoli, Costiera Amalfitana, aeroporto Capodichino.',
-  onboarding_completed = true
-WHERE email = 'jolly8@nomadiqe.seed';
-
-UPDATE public.profiles SET
   full_name = 'Sara Fornitore',
   username = 'sarafornitore',
   role = 'jolly',
@@ -531,26 +491,6 @@ UPDATE public.profiles SET
   bio = 'Property manager per affitti brevi. Gestione centralizzata, pricing, pulizie. Bologna e provincia.',
   onboarding_completed = true
 WHERE email = 'jolly12@nomadiqe.seed';
-
-UPDATE public.profiles SET
-  full_name = 'Valeria Assist',
-  username = 'valeriaassist',
-  role = 'jolly',
-  jolly_subcategory = 'assistenza',
-  avatar_url = 'https://picsum.photos/seed/jl13/400/400',
-  bio = 'Assistenza e booking per strutture. Supporto multilingue. Disponibilità estesa.',
-  onboarding_completed = true
-WHERE email = 'jolly13@nomadiqe.seed';
-
-UPDATE public.profiles SET
-  full_name = 'Lorenzo Transfer',
-  username = 'lorenzotransfer',
-  role = 'jolly',
-  jolly_subcategory = 'autista',
-  avatar_url = 'https://picsum.photos/seed/jl14/400/400',
-  bio = 'Transfer aeroportuali e tour. Minivan 8 posti. Venezia, Treviso, Marco Polo.',
-  onboarding_completed = true
-WHERE email = 'jolly14@nomadiqe.seed';
 
 UPDATE public.profiles SET
   full_name = 'Elena Fornitrice',
